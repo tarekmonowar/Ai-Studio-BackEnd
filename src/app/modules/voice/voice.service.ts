@@ -1,5 +1,9 @@
 import { createRequire } from "node:module";
-import type { AppEnv } from "../../config/env.js";
+import {
+  resolveInstructionByMode,
+  type AppEnv,
+  type InstructionMode,
+} from "../../config/env.js";
 import type { ClientControlEvent, ServerEvent } from "./voice.types.js";
 import { resolveVoiceConfig } from "./voice.utils.js";
 
@@ -36,7 +40,11 @@ export class VoiceLiveSessionService {
     this.handlers = handlers;
   }
 
-  public async connect(): Promise<void> {
+  public async connect(instructionMode?: InstructionMode): Promise<void> {
+    if (this.session) {
+      return;
+    }
+
     this.handlers.onEvent({ type: "session.connecting" });
 
     const client = new VoiceLiveClient(
@@ -126,10 +134,15 @@ export class VoiceLiveSessionService {
 
     await session.connect();
 
+    const selectedInstructions =
+      instructionMode === undefined
+        ? this.config.VOICELIVE_INSTRUCTIONS
+        : resolveInstructionByMode(instructionMode);
+
     await session.updateSession({
       model: this.config.VOICELIVE_MODEL,
       modalities: ["text", "audio"],
-      instructions: this.config.VOICELIVE_INSTRUCTIONS,
+      instructions: selectedInstructions,
       voice: resolveVoiceConfig(this.config.VOICELIVE_VOICE),
       inputAudioFormat: "pcm16",
       outputAudioFormat: "pcm16",

@@ -84,20 +84,6 @@ export function registerVoiceSocketRoute(
       },
     });
 
-    try {
-      await service.connect();
-    } catch (error) {
-      const readable = toReadableConnectError(error);
-      sendEvent(socket, {
-        type: "error",
-        message: readable.message,
-        code: readable.code,
-        hint: readable.hint,
-      });
-      socket.close(1011, "Voice service unavailable");
-      return;
-    }
-
     socket.on(
       "message",
       withWsAsyncHandler(socket, async (rawData, isBinary) => {
@@ -119,6 +105,22 @@ export function registerVoiceSocketRoute(
             hint: "Refresh the page and try again.",
           });
           return;
+        }
+
+        if (event.type === "session.start") {
+          try {
+            await service.connect(event.instructionMode);
+          } catch (error) {
+            const readable = toReadableConnectError(error);
+            sendEvent(socket, {
+              type: "error",
+              message: readable.message,
+              code: readable.code,
+              hint: readable.hint,
+            });
+            socket.close(1011, "Voice service unavailable");
+            return;
+          }
         }
 
         await service.handleControl(event);

@@ -1,5 +1,7 @@
+import type { InstructionMode } from "../../config/env.js";
+
 export type ClientControlEvent =
-  | { type: "session.start" }
+  | { type: "session.start"; instructionMode?: InstructionMode }
   | { type: "response.cancel" }
   | { type: "response.create" }
   | { type: "ping" };
