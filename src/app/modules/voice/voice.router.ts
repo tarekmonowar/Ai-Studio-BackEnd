@@ -1,4 +1,5 @@
 import type { IncomingMessage } from "node:http";
+import { isIP } from "node:net";
 import type { RawData, WebSocket, WebSocketServer } from "ws";
 import { withWsAsyncHandler } from "../../middleware/wsAsyncHandler.js";
 import type { AppEnv } from "../../config/env.js";
@@ -71,18 +72,80 @@ function sendEvent(socket: WebSocket, event: ServerEvent): void {
   socket.send(JSON.stringify(event));
 }
 
+function normalizeIpCandidate(candidate: string): string | null {
+  const trimmed = candidate.trim().replace(/^"|"$/g, "");
+  if (!trimmed || trimmed.toLowerCase() === "unknown") {
+    return null;
+  }
+
+  const withoutV4MappedPrefix = trimmed.startsWith("::ffff:")
+    ? trimmed.slice("::ffff:".length)
+    : trimmed;
+
+  const bracketedIpv6 = withoutV4MappedPrefix.match(/^\[([^\]]+)\](?::\d+)?$/);
+  if (bracketedIpv6?.[1]) {
+    const host = bracketedIpv6[1];
+    return isIP(host) ? host : null;
+  }
+
+  if (isIP(withoutV4MappedPrefix)) {
+    return withoutV4MappedPrefix;
+  }
+
+  const ipv4WithPort = withoutV4MappedPrefix.match(
+    /^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/,
+  );
+  if (ipv4WithPort?.[1] && isIP(ipv4WithPort[1])) {
+    return ipv4WithPort[1];
+  }
+
+  return null;
+}
+
 function resolveUserIp(request: IncomingMessage): string {
   const forwarded = request.headers["x-forwarded-for"];
 
   if (typeof forwarded === "string") {
     const first = forwarded.split(",")[0]?.trim();
-    if (first) {
-      return first;
+    const normalized = first ? normalizeIpCandidate(first) : null;
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  const realIp = request.headers["x-real-ip"];
+  if (typeof realIp === "string") {
+    const normalized = normalizeIpCandidate(realIp);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  const clientIp = request.headers["x-client-ip"];
+  if (typeof clientIp === "string") {
+    const normalized = normalizeIpCandidate(clientIp);
+    if (normalized) {
+      return normalized;
     }
   }
 
   if (Array.isArray(forwarded) && forwarded.length > 0) {
     const first = forwarded[0]?.split(",")[0]?.trim();
+    const normalized = first ? normalizeIpCandidate(first) : null;
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  const normalizedSocketIp = normalizeIpCandidate(
+    request.socket.remoteAddress ?? "",
+  );
+  if (normalizedSocketIp) {
+    return normalizedSocketIp;
+  }
+
+  if (typeof forwarded === "string") {
+    const first = forwarded.split(",")[0]?.trim();
     if (first) {
       return first;
     }

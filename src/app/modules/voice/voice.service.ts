@@ -104,7 +104,7 @@ export class VoiceLiveSessionService {
       this.userIp = userIp;
     }
 
-    const canProceed = await this.checkUsageLimit(userIp);
+    const canProceed = await this.checkUsageLimit(this.userIp);
     if (!canProceed) {
       return;
     }
