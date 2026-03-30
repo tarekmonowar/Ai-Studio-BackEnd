@@ -1,3 +1,4 @@
+import type { IncomingMessage } from "node:http";
 import type { RawData, WebSocket, WebSocketServer } from "ws";
 import { withWsAsyncHandler } from "../../middleware/wsAsyncHandler.js";
 import type { AppEnv } from "../../config/env.js";
@@ -70,19 +71,45 @@ function sendEvent(socket: WebSocket, event: ServerEvent): void {
   socket.send(JSON.stringify(event));
 }
 
+function resolveUserIp(request: IncomingMessage): string {
+  const forwarded = request.headers["x-forwarded-for"];
+
+  if (typeof forwarded === "string") {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) {
+      return first;
+    }
+  }
+
+  if (Array.isArray(forwarded) && forwarded.length > 0) {
+    const first = forwarded[0]?.split(",")[0]?.trim();
+    if (first) {
+      return first;
+    }
+  }
+
+  return request.socket.remoteAddress ?? "unknown";
+}
+
 export function registerVoiceSocketRoute(
   wss: WebSocketServer,
   env: AppEnv,
 ): void {
-  wss.on("connection", async (socket) => {
-    const service = new VoiceLiveSessionService(env, {
-      onEvent: (event) => sendEvent(socket, event),
-      onAudioChunk: (chunk) => {
-        if (socket.readyState === socket.OPEN) {
-          socket.send(chunk, { binary: true });
-        }
+  wss.on("connection", async (socket, request) => {
+    const service = new VoiceLiveSessionService(
+      env,
+      {
+        onEvent: (event) => sendEvent(socket, event),
+        onAudioChunk: (chunk) => {
+          if (socket.readyState === socket.OPEN) {
+            socket.send(chunk, { binary: true });
+          }
+        },
       },
-    });
+      {
+        userIp: resolveUserIp(request),
+      },
+    );
 
     socket.on(
       "message",

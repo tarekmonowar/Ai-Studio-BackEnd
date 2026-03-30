@@ -30,6 +30,10 @@ Required:
 - VOICELIVE_ENDPOINT
 - VOICELIVE_API_KEY
 
+Optional (for background conversation logging):
+
+- MONGODB_URI
+
 ## Run
 
 - npm run dev

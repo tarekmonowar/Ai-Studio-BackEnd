@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import {
   resolveInstructionByMode,
@@ -13,6 +14,8 @@ import {
   resolveQuestionIdPrefixForTopic,
   type InterviewTopicSelection,
 } from "../../utils/interviewQuestionBank.js";
+import { ensureMongoConnection } from "../../utils/mongoConnection.js";
+import { ConversationLogModel } from "./conversationLog.model.js";
 import type { ClientControlEvent, ServerEvent } from "./voice.types.js";
 import { resolveVoiceByProfile, resolveVoiceConfig } from "./voice.utils.js";
 
@@ -34,6 +37,19 @@ interface VoiceLiveSessionHandlers {
   onAudioChunk: (chunk: Buffer) => void;
 }
 
+interface VoiceLiveSessionOptions {
+  userIp?: string;
+}
+
+type LogRole = "user" | "assistant";
+
+interface PendingLogMessage {
+  role: LogRole;
+  content: string;
+  timestamp: Date;
+  topic: string;
+}
+
 type InterviewTrackMode =
   | "undecided"
   | "interpersonal"
@@ -49,6 +65,8 @@ export class VoiceLiveSessionService {
 
   private responseActive = false;
   private disconnected = false;
+  private sessionId = "pending";
+  private readonly userIp: string;
   private instructionMode: InstructionMode | undefined;
   private lastAppliedInstructions: string | null = null;
   private trackMode: InterviewTrackMode = "undecided";
@@ -59,9 +77,14 @@ export class VoiceLiveSessionService {
   private readonly askedQuestionsFromHistory: string[] = [];
   private readonly askedQuestionHistorySet = new Set<string>();
 
-  public constructor(config: AppEnv, handlers: VoiceLiveSessionHandlers) {
+  public constructor(
+    config: AppEnv,
+    handlers: VoiceLiveSessionHandlers,
+    options: VoiceLiveSessionOptions = {},
+  ) {
     this.config = config;
     this.handlers = handlers;
+    this.userIp = options.userIp ?? "unknown";
   }
 
   public async connect(
@@ -73,6 +96,9 @@ export class VoiceLiveSessionService {
     }
 
     this.handlers.onEvent({ type: "session.connecting" });
+
+    // Start connection in background; never block live voice flow on DB.
+    ensureMongoConnection();
 
     const client = new VoiceLiveClient(
       this.config.VOICELIVE_ENDPOINT,
@@ -87,6 +113,9 @@ export class VoiceLiveSessionService {
 
     this.subscription = session.subscribe({
       onSessionUpdated: async (_event, context) => {
+        if (this.sessionId === "pending") {
+          this.sessionId = context.sessionId;
+        }
         this.handlers.onEvent({
           type: "session.ready",
           sessionId: context.sessionId,
@@ -98,6 +127,8 @@ export class VoiceLiveSessionService {
             type: "transcript.user",
             text: event.transcript,
           });
+
+          this.saveLogToMongo("user", event.transcript);
 
           const routeChanged = this.updateRoutingFromUserTranscript(
             event.transcript,
@@ -132,6 +163,8 @@ export class VoiceLiveSessionService {
           type: "transcript.assistant",
           text: event.transcript,
         });
+
+        this.saveLogToMongo("assistant", event.transcript);
 
         const tracked = this.trackAskedQuestionsFromTranscript(
           event.transcript,
@@ -539,5 +572,96 @@ export class VoiceLiveSessionService {
         });
       }
     }
+  }
+
+  private saveLogToMongo(role: string, content: string): void {
+    const normalized = content.trim();
+    if (!normalized) {
+      return;
+    }
+
+    const activeSessionId = this.ensureLogSessionId();
+
+    const roleValue: LogRole = role === "assistant" ? "assistant" : "user";
+    const nextMessage: PendingLogMessage = {
+      role: roleValue,
+      content: normalized,
+      timestamp: new Date(),
+      topic: this.resolveCurrentTopicForLog(),
+    };
+
+    this.persistLogMessages(activeSessionId, [nextMessage]);
+  }
+
+  private ensureLogSessionId(): string {
+    if (this.sessionId === "pending") {
+      this.sessionId = `ws-${randomUUID()}`;
+    }
+
+    return this.sessionId;
+  }
+
+  private persistLogMessages(
+    sessionId: string,
+    messages: PendingLogMessage[],
+  ): void {
+    if (messages.length === 0) {
+      return;
+    }
+
+    ensureMongoConnection();
+    const currentTopic =
+      messages[messages.length - 1]?.topic ?? this.resolveCurrentTopicForLog();
+
+    ConversationLogModel.findOneAndUpdate(
+      { sessionId },
+      {
+        $set: {
+          topic: currentTopic,
+        },
+        $setOnInsert: {
+          sessionId,
+          userIp: this.userIp,
+        },
+        $push: {
+          messages: {
+            $each: messages.map((message) => ({
+              role: message.role,
+              content: message.content,
+              timestamp: message.timestamp,
+            })),
+          },
+        },
+      },
+      { upsert: true },
+    )
+      .exec()
+      .catch((error) => {
+        console.error("Conversation log write failed:", error);
+      });
+  }
+
+  private resolveCurrentTopicForLog(): string {
+    if (this.instructionMode === "english-learning") {
+      return "english-learning";
+    }
+
+    if (this.trackMode === "technical-topic" && this.lockedTopic) {
+      return this.lockedTopic;
+    }
+
+    if (this.trackMode === "technical-general") {
+      return "technical-general";
+    }
+
+    if (this.trackMode === "interpersonal") {
+      return "interpersonal";
+    }
+
+    if (this.instructionMode === "interview-prep") {
+      return "interview-prep";
+    }
+
+    return "default";
   }
 }
