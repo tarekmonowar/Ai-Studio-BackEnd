@@ -96,6 +96,8 @@ export function registerVoiceSocketRoute(
   env: AppEnv,
 ): void {
   wss.on("connection", async (socket, request) => {
+    const userIp = resolveUserIp(request);
+
     const service = new VoiceLiveSessionService(
       env,
       {
@@ -107,7 +109,7 @@ export function registerVoiceSocketRoute(
         },
       },
       {
-        userIp: resolveUserIp(request),
+        userIp,
       },
     );
 
@@ -136,7 +138,11 @@ export function registerVoiceSocketRoute(
 
         if (event.type === "session.start") {
           try {
-            await service.connect(event.instructionMode, event.speakerProfile);
+            await service.connect(
+              event.instructionMode,
+              event.speakerProfile,
+              userIp,
+            );
           } catch (error) {
             const readable = toReadableConnectError(error);
             sendEvent(socket, {

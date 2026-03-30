@@ -14,8 +14,12 @@ import {
   resolveQuestionIdPrefixForTopic,
   type InterviewTopicSelection,
 } from "../../utils/interviewQuestionBank.js";
-import { ensureMongoConnection } from "../../utils/mongoConnection.js";
+import {
+  ensureMongoConnection,
+  ensureMongoConnectionReady,
+} from "../../utils/mongoConnection.js";
 import { ConversationLogModel } from "./conversationLog.model.js";
+import { UserSessionModel } from "./userSession.model.js";
 import type { ClientControlEvent, ServerEvent } from "./voice.types.js";
 import { resolveVoiceByProfile, resolveVoiceConfig } from "./voice.utils.js";
 
@@ -26,6 +30,9 @@ const { VoiceLiveClient } = cjsRequire(
 const { AzureKeyCredential } = cjsRequire(
   "@azure/core-auth",
 ) as typeof import("@azure/core-auth");
+
+const FREE_TIER_LIMIT_MESSAGE =
+  "Your free tier has ended. If you want to practice further, please contact Tarek Monowar.";
 
 type VoiceLiveSession = ReturnType<
   InstanceType<typeof VoiceLiveClient>["createSession"]
@@ -66,7 +73,8 @@ export class VoiceLiveSessionService {
   private responseActive = false;
   private disconnected = false;
   private sessionId = "pending";
-  private readonly userIp: string;
+  private userIp: string;
+  private rateLimitFirstSeenMs: number | null = null;
   private instructionMode: InstructionMode | undefined;
   private lastAppliedInstructions: string | null = null;
   private trackMode: InterviewTrackMode = "undecided";
@@ -90,7 +98,17 @@ export class VoiceLiveSessionService {
   public async connect(
     instructionMode?: InstructionMode,
     speakerProfile?: SpeakerProfile,
+    userIp?: string,
   ): Promise<void> {
+    if (userIp) {
+      this.userIp = userIp;
+    }
+
+    const canProceed = await this.checkUsageLimit(userIp);
+    if (!canProceed) {
+      return;
+    }
+
     if (this.session) {
       return;
     }
@@ -116,9 +134,14 @@ export class VoiceLiveSessionService {
         if (this.sessionId === "pending") {
           this.sessionId = context.sessionId;
         }
+
+        const rateLimitRemainingSeconds = this.getRateLimitRemainingSeconds();
         this.handlers.onEvent({
           type: "session.ready",
           sessionId: context.sessionId,
+          ...(rateLimitRemainingSeconds !== null
+            ? { rateLimitRemainingSeconds }
+            : {}),
         });
       },
       onConversationItemInputAudioTranscriptionCompleted: async (event) => {
@@ -237,6 +260,71 @@ export class VoiceLiveSessionService {
     });
 
     this.lastAppliedInstructions = selectedInstructions;
+  }
+
+  private async checkUsageLimit(userIp?: string): Promise<boolean> {
+    if (!this.config.RATE_LIMIT_ENABLED || !userIp) {
+      this.rateLimitFirstSeenMs = null;
+      return true;
+    }
+
+    try {
+      await ensureMongoConnectionReady();
+
+      const now = new Date();
+      const userSession = await UserSessionModel.findOneAndUpdate(
+        { userIp },
+        {
+          $setOnInsert: {
+            userIp,
+            firstSeen: now,
+          },
+        },
+        {
+          upsert: true,
+          returnDocument: "after",
+        },
+      )
+        .lean()
+        .exec();
+
+      const firstSeenMs = new Date(userSession.firstSeen).getTime();
+      this.rateLimitFirstSeenMs = firstSeenMs;
+      const elapsedMs = Date.now() - firstSeenMs;
+
+      if (elapsedMs > this.config.RATE_LIMIT_MINUTES * 60_000) {
+        this.handlers.onEvent({
+          type: "error",
+          message: FREE_TIER_LIMIT_MESSAGE,
+        });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      this.rateLimitFirstSeenMs = null;
+      this.handlers.onEvent({
+        type: "error",
+        message:
+          "Could not validate usage limit right now. Please try again shortly.",
+        code: "USAGE_LIMIT_CHECK_FAILED",
+        hint: "Check MongoDB connectivity and MONGODB_URI configuration.",
+      });
+      console.error("Usage limit check failed:", error);
+      return false;
+    }
+  }
+
+  private getRateLimitRemainingSeconds(): number | null {
+    if (!this.config.RATE_LIMIT_ENABLED || this.rateLimitFirstSeenMs === null) {
+      return null;
+    }
+
+    const elapsedMs = Date.now() - this.rateLimitFirstSeenMs;
+    const totalMs = this.config.RATE_LIMIT_MINUTES * 60_000;
+    const remainingMs = Math.max(0, totalMs - elapsedMs);
+
+    return Math.ceil(remainingMs / 1000);
   }
 
   public async pushAudio(bytes: Uint8Array): Promise<void> {

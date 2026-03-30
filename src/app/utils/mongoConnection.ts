@@ -3,17 +3,11 @@ import mongoose from "mongoose";
 let connectPromise: Promise<typeof mongoose> | null = null;
 let missingUriNotified = false;
 
-export function ensureMongoConnection(): void {
+export async function ensureMongoConnectionReady(): Promise<void> {
   const uri = process.env.MONGODB_URI;
 
   if (!uri) {
-    if (!missingUriNotified) {
-      missingUriNotified = true;
-      console.error(
-        "MONGODB_URI is not configured. Conversation logging is disabled.",
-      );
-    }
-    return;
+    throw new Error("MONGODB_URI is not configured");
   }
 
   const readyState = mongoose.connection.readyState;
@@ -28,7 +22,21 @@ export function ensureMongoConnection(): void {
     });
   }
 
-  void connectPromise.catch((error) => {
+  await connectPromise;
+}
+
+export function ensureMongoConnection(): void {
+  if (!process.env.MONGODB_URI) {
+    if (!missingUriNotified) {
+      missingUriNotified = true;
+      console.error(
+        "MONGODB_URI is not configured. Conversation logging is disabled.",
+      );
+    }
+    return;
+  }
+
+  void ensureMongoConnectionReady().catch((error) => {
     console.error("MongoDB connection failed:", error);
   });
 }
