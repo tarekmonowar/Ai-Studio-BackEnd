@@ -3,9 +3,18 @@ import {
   resolveInstructionByMode,
   type AppEnv,
   type InstructionMode,
+  type SpeakerProfile,
 } from "../../config/env.js";
+import {
+  buildInterviewQuestionContext,
+  detectTechnicalTopicSelection,
+  extractAskedQuestionIdsFromTranscript,
+  normalizeQuestionText,
+  resolveQuestionIdPrefixForTopic,
+  type InterviewTopicSelection,
+} from "../../utils/interviewQuestionBank.js";
 import type { ClientControlEvent, ServerEvent } from "./voice.types.js";
-import { resolveVoiceConfig } from "./voice.utils.js";
+import { resolveVoiceByProfile, resolveVoiceConfig } from "./voice.utils.js";
 
 const cjsRequire = createRequire(import.meta.url);
 const { VoiceLiveClient } = cjsRequire(
@@ -25,6 +34,12 @@ interface VoiceLiveSessionHandlers {
   onAudioChunk: (chunk: Buffer) => void;
 }
 
+type InterviewTrackMode =
+  | "undecided"
+  | "interpersonal"
+  | "technical-general"
+  | "technical-topic";
+
 export class VoiceLiveSessionService {
   private readonly config: AppEnv;
   private readonly handlers: VoiceLiveSessionHandlers;
@@ -34,13 +49,25 @@ export class VoiceLiveSessionService {
 
   private responseActive = false;
   private disconnected = false;
+  private instructionMode: InstructionMode | undefined;
+  private lastAppliedInstructions: string | null = null;
+  private trackMode: InterviewTrackMode = "undecided";
+  private lockedTopic: InterviewTopicSelection | null = null;
+  private lockedTopicAskedAtStart = 0;
+
+  private readonly askedQuestionIds = new Set<string>();
+  private readonly askedQuestionsFromHistory: string[] = [];
+  private readonly askedQuestionHistorySet = new Set<string>();
 
   public constructor(config: AppEnv, handlers: VoiceLiveSessionHandlers) {
     this.config = config;
     this.handlers = handlers;
   }
 
-  public async connect(instructionMode?: InstructionMode): Promise<void> {
+  public async connect(
+    instructionMode?: InstructionMode,
+    speakerProfile?: SpeakerProfile,
+  ): Promise<void> {
     if (this.session) {
       return;
     }
@@ -56,6 +83,7 @@ export class VoiceLiveSessionService {
       model: this.config.VOICELIVE_MODEL,
     });
     this.session = session;
+    this.instructionMode = instructionMode;
 
     this.subscription = session.subscribe({
       onSessionUpdated: async (_event, context) => {
@@ -70,6 +98,13 @@ export class VoiceLiveSessionService {
             type: "transcript.user",
             text: event.transcript,
           });
+
+          const routeChanged = this.updateRoutingFromUserTranscript(
+            event.transcript,
+          );
+          if (routeChanged) {
+            await this.refreshInterviewInstructionsIfNeeded();
+          }
         }
       },
       onResponseCreated: async () => {
@@ -89,11 +124,21 @@ export class VoiceLiveSessionService {
         this.handlers.onAudioChunk(chunk);
       },
       onResponseAudioTranscriptDone: async (event) => {
-        if (event.transcript) {
-          this.handlers.onEvent({
-            type: "transcript.assistant",
-            text: event.transcript,
-          });
+        if (!event.transcript) {
+          return;
+        }
+
+        this.handlers.onEvent({
+          type: "transcript.assistant",
+          text: event.transcript,
+        });
+
+        const tracked = this.trackAskedQuestionsFromTranscript(
+          event.transcript,
+        );
+
+        if (tracked) {
+          await this.refreshInterviewInstructionsIfNeeded();
         }
       },
       onResponseDone: async () => {
@@ -134,16 +179,14 @@ export class VoiceLiveSessionService {
 
     await session.connect();
 
-    const selectedInstructions =
-      instructionMode === undefined
-        ? this.config.VOICELIVE_INSTRUCTIONS
-        : resolveInstructionByMode(instructionMode);
+    const selectedInstructions = this.resolveSessionInstructions();
+    const selectedVoice = resolveVoiceByProfile(speakerProfile);
 
     await session.updateSession({
       model: this.config.VOICELIVE_MODEL,
       modalities: ["text", "audio"],
       instructions: selectedInstructions,
-      voice: resolveVoiceConfig(this.config.VOICELIVE_VOICE),
+      voice: resolveVoiceConfig(selectedVoice),
       inputAudioFormat: "pcm16",
       outputAudioFormat: "pcm16",
       turnDetection: {
@@ -159,6 +202,8 @@ export class VoiceLiveSessionService {
       inputAudioNoiseReduction: { type: "azure_deep_noise_suppression" },
       inputAudioTranscription: { model: "azure-speech" },
     });
+
+    this.lastAppliedInstructions = selectedInstructions;
   }
 
   public async pushAudio(bytes: Uint8Array): Promise<void> {
@@ -182,6 +227,7 @@ export class VoiceLiveSessionService {
           return;
         }
 
+        await this.refreshInterviewInstructionsIfNeeded();
         await this.commitInputAudioBuffer();
         await this.session.sendEvent({ type: "response.create" });
         return;
@@ -198,6 +244,217 @@ export class VoiceLiveSessionService {
           hint: "Refresh the page and try again.",
         });
       }
+    }
+  }
+
+  private resolveSessionInstructions(): string {
+    const baseInstructions =
+      this.instructionMode === undefined
+        ? this.config.VOICELIVE_INSTRUCTIONS
+        : resolveInstructionByMode(this.instructionMode);
+
+    if (this.instructionMode === "english-learning") {
+      return baseInstructions;
+    }
+
+    const interviewQuestionContext = buildInterviewQuestionContext(
+      this.askedQuestionIds,
+      this.askedQuestionsFromHistory,
+    );
+
+    const activeDirective = this.buildActiveRuntimeDirective();
+
+    return `${baseInstructions}\n\n${interviewQuestionContext}\n\n${activeDirective}`;
+  }
+
+  private buildActiveRuntimeDirective(): string {
+    const lines: string[] = [
+      "## Active Runtime Directive (Highest Priority)",
+      "- After each user answer, first give a short feedback verdict: correct, partially correct, or incorrect.",
+      "- If the answer is partially correct or incorrect, provide a short corrected core answer in one to two sentences, then ask the next question.",
+      "- Do not ask the interpersonal-or-technical choice question unless a block is actually complete or user asks to switch.",
+    ];
+
+    if (this.trackMode === "technical-topic" && this.lockedTopic) {
+      const askedInBlock =
+        this.getAskedCountByTopic(this.lockedTopic) -
+        this.lockedTopicAskedAtStart;
+      lines.push(`- User-selected topic lock is active: ${this.lockedTopic}.`);
+      lines.push(
+        `- Questions asked in current ${this.lockedTopic} block: ${Math.max(0, askedInBlock)}.`,
+      );
+
+      if (askedInBlock < 10) {
+        lines.push(
+          `- Continue asking unique ${this.lockedTopic} questions now; do not ask to choose interpersonal or technical now.`,
+        );
+      } else if (askedInBlock <= 15) {
+        lines.push(
+          `- Keep ${this.lockedTopic} focus unless user asks to switch; you may ask if user wants another technology only after finishing this block.`,
+        );
+      } else {
+        lines.push(
+          `- ${this.lockedTopic} block exceeded fifteen questions; ask which technology should be next.`,
+        );
+      }
+
+      return lines.join("\n");
+    }
+
+    if (this.trackMode === "interpersonal") {
+      lines.push(
+        "- Interpersonal track is active; continue interpersonal until block completion or explicit user switch.",
+      );
+      return lines.join("\n");
+    }
+
+    if (this.trackMode === "technical-general") {
+      lines.push(
+        "- General technical track is active; continue default technical sequence and avoid returning to mode-selection prompt mid-topic.",
+      );
+      return lines.join("\n");
+    }
+
+    lines.push(
+      "- Waiting for user to pick mode; ask interpersonal-or-technical only at session start or after a completed block.",
+    );
+    return lines.join("\n");
+  }
+
+  private updateRoutingFromUserTranscript(transcript: string): boolean {
+    if (this.instructionMode !== "interview-prep") {
+      return false;
+    }
+
+    const normalized = normalizeQuestionText(transcript);
+    if (!normalized) {
+      return false;
+    }
+
+    const words = normalized.split(" ").filter(Boolean);
+    const hasControlVerb =
+      /\b(ask|start|switch|move|focus|continue|go|choose|pick|lets|let s|now|next|only)\b/.test(
+        normalized,
+      );
+    const likelySelectionUtterance = hasControlVerb || words.length <= 3;
+
+    const selectedTopic = detectTechnicalTopicSelection(normalized);
+    if (selectedTopic && likelySelectionUtterance) {
+      const modeChanged = this.trackMode !== "technical-topic";
+      const topicChanged = this.lockedTopic !== selectedTopic;
+
+      this.trackMode = "technical-topic";
+
+      if (topicChanged) {
+        this.lockedTopic = selectedTopic;
+        this.lockedTopicAskedAtStart = this.getAskedCountByTopic(selectedTopic);
+      }
+
+      return modeChanged || topicChanged;
+    }
+
+    const wantsInterpersonal =
+      /\b(interpersonal|behavioral|behavioural|hr)\b/.test(normalized) &&
+      likelySelectionUtterance;
+    if (wantsInterpersonal) {
+      const changed =
+        this.trackMode !== "interpersonal" || this.lockedTopic !== null;
+      this.trackMode = "interpersonal";
+      this.lockedTopic = null;
+      this.lockedTopicAskedAtStart = 0;
+      return changed;
+    }
+
+    const wantsTechnical =
+      /\btechnical\b/.test(normalized) && likelySelectionUtterance;
+    if (wantsTechnical) {
+      const changed =
+        this.trackMode !== "technical-general" || this.lockedTopic !== null;
+      this.trackMode = "technical-general";
+      this.lockedTopic = null;
+      this.lockedTopicAskedAtStart = 0;
+      return changed;
+    }
+
+    return false;
+  }
+
+  private getAskedCountByTopic(topic: InterviewTopicSelection): number {
+    const prefix = `${resolveQuestionIdPrefixForTopic(topic)}-`;
+    let total = 0;
+
+    for (const id of this.askedQuestionIds) {
+      if (id.startsWith(prefix)) {
+        total += 1;
+      }
+    }
+
+    return total;
+  }
+
+  private trackAskedQuestionsFromTranscript(transcript: string): boolean {
+    let hasChanges = false;
+
+    const askedIds = extractAskedQuestionIdsFromTranscript(transcript);
+    for (const id of askedIds) {
+      if (!this.askedQuestionIds.has(id)) {
+        this.askedQuestionIds.add(id);
+        hasChanges = true;
+      }
+    }
+
+    const candidateQuestions = transcript.match(/[^?]+\?/g) ?? [];
+    for (const candidate of candidateQuestions) {
+      const trimmedQuestion = candidate.replace(/\s+/g, " ").trim();
+      if (!trimmedQuestion) {
+        continue;
+      }
+
+      const normalizedQuestion = normalizeQuestionText(trimmedQuestion);
+      if (
+        !normalizedQuestion ||
+        this.askedQuestionHistorySet.has(normalizedQuestion)
+      ) {
+        continue;
+      }
+
+      this.askedQuestionHistorySet.add(normalizedQuestion);
+      this.askedQuestionsFromHistory.push(trimmedQuestion);
+      hasChanges = true;
+
+      if (this.askedQuestionsFromHistory.length > 120) {
+        const oldest = this.askedQuestionsFromHistory.shift();
+        if (oldest) {
+          this.askedQuestionHistorySet.delete(normalizeQuestionText(oldest));
+        }
+      }
+    }
+
+    return hasChanges;
+  }
+
+  private async refreshInterviewInstructionsIfNeeded(): Promise<void> {
+    if (!this.session || this.instructionMode === "english-learning") {
+      return;
+    }
+
+    const nextInstructions = this.resolveSessionInstructions();
+    if (this.lastAppliedInstructions === nextInstructions) {
+      return;
+    }
+
+    try {
+      await this.session.updateSession({
+        instructions: nextInstructions,
+      });
+      this.lastAppliedInstructions = nextInstructions;
+    } catch {
+      this.handlers.onEvent({
+        type: "error",
+        message: "Could not refresh interview context for next response.",
+        code: "INSTRUCTION_UPDATE_FAILED",
+        hint: "You can keep speaking. If repeats continue, restart the session.",
+      });
     }
   }
 

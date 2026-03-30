@@ -1,0 +1,120 @@
+const mongoInterviewQuestions = [
+  // Core Database Concepts
+  "What is the difference between SQL and NoSQL databases?",
+  "What is MongoDB?",
+  "Why is MongoDB considered a NoSQL database?",
+  "What problems does MongoDB solve?",
+  "What is a document-oriented database?",
+  "What is BSON and why does MongoDB use it?",
+  "What is the difference between a document and a collection?",
+  "How do collections and documents map to tables and rows?",
+  "What are the advantages of MongoDB over relational databases?",
+  "What are the limitations of MongoDB?",
+
+  // Schema & Data Modeling
+  "What does schema-less mean in MongoDB?",
+  "How does schema enforcement differ between SQL and NoSQL?",
+  "What is data modeling in MongoDB?",
+  "Embedding vs referencing – when should you use each?",
+  "Why does MongoDB prefer denormalization?",
+  "What are common schema design mistakes in MongoDB?",
+  "What is the 16MB document size limit?",
+  "How does MongoDB handle relationships?",
+  "What is $lookup and how does it simulate joins?",
+  "Why are joins discouraged in NoSQL databases?",
+
+  // ACID, BASE, CAP
+  "What are ACID properties?",
+  "Does MongoDB support ACID transactions?",
+  "What is BASE consistency?",
+  "ACID vs BASE – what are the trade-offs?",
+  "What is eventual consistency?",
+  "Explain the CAP theorem",
+  "How does MongoDB balance consistency, availability, and partition tolerance?",
+
+  // Scaling & Architecture
+  "What is vertical scaling?",
+  "What is horizontal scaling?",
+  "Why is MongoDB good at horizontal scaling?",
+  "What is sharding in MongoDB?",
+  "How does sharding improve scalability?",
+  "What is a shard key and why is it important?",
+  "What is replication in MongoDB?",
+  "What is a replica set?",
+  "How does MongoDB ensure high availability?",
+  "What happens when the primary node goes down?",
+
+  // Indexing & Performance
+  "What is indexing in MongoDB?",
+  "How do indexes improve read performance?",
+  "Why do indexes slow down write operations?",
+  "What index types does MongoDB support?",
+  "What is a compound index?",
+  "How does MongoDB use B-Tree indexes?",
+  "When should you avoid creating indexes?",
+  "How do you analyze query performance?",
+  "What is a collection scan?",
+  "How do you optimize MongoDB queries?",
+
+  // CRUD Operations
+  "How do you insert documents in MongoDB?",
+  "How do you query documents in MongoDB?",
+  "What is the difference between find and findOne?",
+  "How do you update a document in MongoDB?",
+  "Difference between updateOne and findOneAndUpdate",
+  "How do you delete a document?",
+  "What is ObjectId and how is it generated?",
+  "What are common MongoDB data types?",
+  "How do you implement pagination in MongoDB?",
+  "What is projection in MongoDB?",
+
+  // Aggregation Framework
+  "What is MongoDB aggregation?",
+  "What is an aggregation pipeline?",
+  "Difference between find() and aggregation",
+  "What does $match do?",
+  "What does $group do?",
+  "What are common accumulator operators?",
+  "What does $project do?",
+  "What does $unwind do?",
+  "When should you use $lookup?",
+  "How do you optimize aggregation pipelines?",
+
+  // Mongoose (ODM)
+  "What is Mongoose and why is it used?",
+  "ODM vs ORM – what is the difference?",
+  "What is a Schema in Mongoose?",
+  "What is a Model in Mongoose?",
+  "How does Mongoose add schema validation?",
+  "How does Mongoose handle relationships?",
+  "What is populate() in Mongoose?",
+  "What are middleware (hooks) in Mongoose?",
+  "Difference between pre and post hooks",
+  "What are virtual fields in Mongoose?",
+
+  // Advanced Mongoose
+  "What is .lean() and why is it important?",
+  "How does Mongoose support transactions?",
+  "What are discriminators in Mongoose?",
+  "How do you implement soft deletes?",
+  "How does Mongoose handle indexes?",
+  "save() vs create() in Mongoose",
+  "find() vs findOne() vs findById()",
+  "How does Mongoose prevent invalid data?",
+  "How do you handle validation errors?",
+  "How do you structure large Mongoose models?",
+
+  // Performance & Best Practices
+  "What causes performance issues in MongoDB?",
+  "What is the N+1 problem in Mongoose?",
+  "Why is populate inside loops bad?",
+  "How do you cache MongoDB data efficiently?",
+  "How do you handle race conditions?",
+  "How do you cancel long-running queries?",
+  "How do you persist database connections in Node.js?",
+  "What is connection pooling?",
+  "How do you secure MongoDB in production?",
+  "How do you debug MongoDB issues in production?",
+];
+
+export default mongoInterviewQuestions;

@@ -109,7 +109,7 @@ export function registerVoiceSocketRoute(
 
         if (event.type === "session.start") {
           try {
-            await service.connect(event.instructionMode);
+            await service.connect(event.instructionMode, event.speakerProfile);
           } catch (error) {
             const readable = toReadableConnectError(error);
             sendEvent(socket, {

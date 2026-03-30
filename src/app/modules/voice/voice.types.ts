@@ -1,7 +1,11 @@
-import type { InstructionMode } from "../../config/env.js";
+import type { InstructionMode, SpeakerProfile } from "../../config/env.js";
 
 export type ClientControlEvent =
-  | { type: "session.start"; instructionMode?: InstructionMode }
+  | {
+      type: "session.start";
+      instructionMode?: InstructionMode;
+      speakerProfile?: SpeakerProfile;
+    }
   | { type: "response.cancel" }
   | { type: "response.create" }
   | { type: "ping" };
