@@ -143,6 +143,7 @@ export class VoiceLiveSessionService {
             ? { rateLimitRemainingSeconds }
             : {}),
         });
+        this.emitPhaseUpdate();
       },
       onConversationItemInputAudioTranscriptionCompleted: async (event) => {
         if (event.transcript) {
@@ -157,6 +158,7 @@ export class VoiceLiveSessionService {
             event.transcript,
           );
           if (routeChanged) {
+            this.emitPhaseUpdate();
             await this.refreshInterviewInstructionsIfNeeded();
           }
         }
@@ -194,6 +196,7 @@ export class VoiceLiveSessionService {
         );
 
         if (tracked) {
+          this.emitPhaseUpdate();
           await this.refreshInterviewInstructionsIfNeeded();
         }
       },
@@ -366,6 +369,13 @@ export class VoiceLiveSessionService {
         });
       }
     }
+  }
+
+  private emitPhaseUpdate(): void {
+    this.handlers.onEvent({
+      type: "phase.update",
+      phase: this.resolveCurrentTopicForLog(),
+    });
   }
 
   private resolveSessionInstructions(): string {
