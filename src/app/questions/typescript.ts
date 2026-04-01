@@ -1,7 +1,6 @@
 const typescriptInterviewQuestions = [
   "What is TypeScript?",
   "Why do we use TypeScript?",
-  "Who developed TypeScript?",
   "Can browsers run TypeScript directly?",
   "How do you compile TypeScript code?",
   "What is tsconfig.json?",

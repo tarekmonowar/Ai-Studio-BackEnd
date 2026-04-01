@@ -1,0 +1,40 @@
+import type { AppEnv } from "../config/env.js";
+import { handleHealthRoute } from "../modules/health/health.router.js";
+import { handleGetLogsRoute } from "../modules/logs/logs.router.js";
+import type {
+  HttpRequest,
+  HttpResponse,
+  ModuleRouteDefinition,
+} from "../types/route.types.js";
+
+function getPathname(req: HttpRequest): string {
+  return new URL(req.url ?? "/", "http://localhost").pathname;
+}
+
+// Module route definitions (Express-style registry for readability)
+export const moduleRoutes: ModuleRouteDefinition[] = [
+  { method: "GET", path: "/", route: handleHealthRoute },
+  { method: "GET", path: "/health", route: handleHealthRoute },
+  { method: "GET", path: "/getLogs", route: handleGetLogsRoute },
+];
+
+export function handleHttpRoutes(
+  req: HttpRequest,
+  res: HttpResponse,
+  env: AppEnv,
+): boolean {
+  const pathname = getPathname(req);
+  const method = (req.method ?? "").toUpperCase();
+
+  for (const moduleRoute of moduleRoutes) {
+    if (moduleRoute.method !== method || moduleRoute.path !== pathname) {
+      continue;
+    }
+
+    if (moduleRoute.route(req, res, env)) {
+      return true;
+    }
+  }
+
+  return false;
+}

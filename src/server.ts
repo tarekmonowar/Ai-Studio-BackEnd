@@ -1,9 +1,12 @@
+import http from "node:http";
 import { WebSocketServer } from "ws";
-import { createHttpServer } from "./app/utils/httpServer.js";
+import { createApp } from "./app.js";
 import { env } from "./app/config/env.js";
 import { registerVoiceSocketRoute } from "./app/modules/voice/voice.router.js";
+import { logger } from "./app/utils/logger.js";
 
-const server = createHttpServer(env);
+const app = createApp(env);
+const server = http.createServer(app);
 
 const MAX_PORT_RETRIES = 6;
 
@@ -11,14 +14,14 @@ function startServer(port: number, retriesLeft: number): void {
   const onError = (error: NodeJS.ErrnoException) => {
     if (error.code === "EADDRINUSE" && retriesLeft > 0) {
       const nextPort = port + 1;
-      console.warn(
+      logger.warn(
         `Port ${port} is already in use. Retrying on port ${nextPort}...`,
       );
       startServer(nextPort, retriesLeft - 1);
       return;
     }
 
-    console.error("Failed to start voice gateway:", error);
+    logger.error("Failed to start voice gateway", error);
     process.exit(1);
   };
 
@@ -30,13 +33,11 @@ function startServer(port: number, retriesLeft: number): void {
     const wss = new WebSocketServer({ server, path: "/ws" });
     registerVoiceSocketRoute(wss, env);
 
-    console.log(`Voice gateway is running on http://localhost:${port}`);
-    console.log(`WebSocket endpoint: ws://localhost:${port}/ws`);
+    logger.info(`Voice gateway is running on http://localhost:${port}`);
+    logger.info(`WebSocket endpoint: ws://localhost:${port}/ws`);
 
     if (port !== env.PORT) {
-      console.warn(
-        `Update frontend backend URL to use port ${port} if needed.`,
-      );
+      logger.warn(`Update frontend backend URL to use port ${port} if needed.`);
     }
   });
 }

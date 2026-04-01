@@ -11,29 +11,19 @@ import postgresInterviewQuestions from "../questions/postgreSQL.js";
 import reactInterviewQuestions from "../questions/react.js";
 import reduxInterviewQuestions from "../questions/redux.js";
 import typescriptInterviewQuestions from "../questions/typescript.js";
+import type {
+  InterviewQuestion,
+  InterviewTopicSelection,
+  TechnicalInterviewTopic,
+  TopicFlowRule,
+  TopicQuestionSet,
+  TopicSelectionPattern,
+} from "../types/interview-question.types.js";
 
-interface TopicQuestionSet {
-  topic: string;
-  questions: readonly string[];
-}
-
-interface TopicFlowRule {
-  topic: string;
-  min: number;
-  max: number;
-}
-
-interface TopicSelectionPattern {
-  topic: InterviewTopicSelection;
-  pattern: RegExp;
-}
-
-interface InterviewQuestion {
-  id: string;
-  topic: string;
-  text: string;
-  normalizedText: string;
-}
+export type {
+  InterviewTopicSelection,
+  TechnicalInterviewTopic,
+} from "../types/interview-question.types.js";
 
 const TOPIC_QUESTION_SETS: readonly TopicQuestionSet[] = [
   { topic: "Interpersonal", questions: interpersonalQuestions },
@@ -64,10 +54,6 @@ const TECHNICAL_TOPIC_FLOW: readonly TopicFlowRule[] = [
   { topic: "PostgreSQL", min: 4, max: 8 },
   { topic: "Docker", min: 4, max: 8 },
 ] as const;
-
-export type TechnicalInterviewTopic =
-  (typeof TECHNICAL_TOPIC_FLOW)[number]["topic"];
-export type InterviewTopicSelection = TechnicalInterviewTopic | "Redux";
 
 const TOPIC_SELECTION_PATTERNS: readonly TopicSelectionPattern[] = [
   { topic: "HTML", pattern: /\bhtml\b/i },

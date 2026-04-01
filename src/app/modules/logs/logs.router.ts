@@ -1,13 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { AppEnv } from "../../config/env.js";
-
-const HEALTH_PATHS = new Set(["/", "/health"]);
+import { getStoredLogs } from "../../utils/logger.js";
 
 function getPathname(req: IncomingMessage): string {
   return new URL(req.url ?? "/", "http://localhost").pathname;
 }
 
-export function handleHealthRoute(
+export function handleGetLogsRoute(
   req: IncomingMessage,
   res: ServerResponse,
   env: AppEnv,
@@ -16,15 +15,19 @@ export function handleHealthRoute(
     return false;
   }
 
-  const pathname = getPathname(req);
-  if (!HEALTH_PATHS.has(pathname)) {
+  if (getPathname(req) !== "/getLogs") {
     return false;
   }
 
   res.statusCode = 200;
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Access-Control-Allow-Origin", env.CORS_ORIGIN);
-  res.end(JSON.stringify({ ok: true, service: "voice-gateway" }));
+  res.end(
+    JSON.stringify({
+      ok: true,
+      files: getStoredLogs(),
+    }),
+  );
 
   return true;
 }

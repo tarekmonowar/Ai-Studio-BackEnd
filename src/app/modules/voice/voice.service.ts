@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import {
-  resolveInstructionByMode,
   type AppEnv,
   type InstructionMode,
   type SpeakerProfile,
@@ -18,6 +17,8 @@ import {
   ensureMongoConnection,
   ensureMongoConnectionReady,
 } from "../../utils/mongoConnection.js";
+import { resolveInstructionByMode } from "../../utils/voiceInstructions.js";
+import { logger } from "../../utils/logger.js";
 import { ConversationLogModel } from "./conversationLog.model.js";
 import { UserSessionModel } from "./userSession.model.js";
 import type { ClientControlEvent, ServerEvent } from "./voice.types.js";
@@ -313,7 +314,7 @@ export class VoiceLiveSessionService {
         code: "USAGE_LIMIT_CHECK_FAILED",
         hint: "Check MongoDB connectivity and MONGODB_URI configuration.",
       });
-      console.error("Usage limit check failed:", error);
+      logger.error("Usage limit check failed", error);
       return false;
     }
   }
@@ -735,7 +736,7 @@ export class VoiceLiveSessionService {
     )
       .exec()
       .catch((error) => {
-        console.error("Conversation log write failed:", error);
+        logger.error("Conversation log write failed", error);
       });
   }
 

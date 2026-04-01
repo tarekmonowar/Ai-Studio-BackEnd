@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { logger } from "./logger.js";
 
 let connectPromise: Promise<typeof mongoose> | null = null;
 let missingUriNotified = false;
@@ -29,7 +30,7 @@ export function ensureMongoConnection(): void {
   if (!process.env.MONGODB_URI) {
     if (!missingUriNotified) {
       missingUriNotified = true;
-      console.error(
+      logger.error(
         "MONGODB_URI is not configured. Conversation logging is disabled.",
       );
     }
@@ -37,6 +38,6 @@ export function ensureMongoConnection(): void {
   }
 
   void ensureMongoConnectionReady().catch((error) => {
-    console.error("MongoDB connection failed:", error);
+    logger.error("MongoDB connection failed", error);
   });
 }
