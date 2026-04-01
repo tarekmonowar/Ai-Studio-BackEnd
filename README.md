@@ -1,23 +1,40 @@
 # 🎙️ AI Studio - Backend Voice Gateway
 
-**Live Demo**: [https://ai-studio.tarekmonowar.dev/](https://ai-studio.tarekmonowar.dev/) | [https://ai-studio-front-end.vercel.app/](https://ai-studio-front-end.vercel.app/)
+**Live Demo**:
+[https://ai-studio.tarekmonowar.dev/](https://ai-studio.tarekmonowar.dev/) |
+[https://ai-studio-tm.vercel.app/](https://ai-studio-tm.vercel.app/)
 
-**GitHub Repositories**: 
-- Frontend: [https://github.com/tarekmonowar/Ai-Studio-FrontEnd](https://github.com/tarekmonowar/Ai-Studio-FrontEnd)
-- Backend: [https://github.com/tarekmonowar/Ai-Studio-BackEnd](https://github.com/tarekmonowar/Ai-Studio-BackEnd)
+**GitHub Repositories**:
+
+- Frontend:
+  [https://github.com/tarekmonowar/Ai-Studio-FrontEnd](https://github.com/tarekmonowar/Ai-Studio-FrontEnd)
+- Backend:
+  [https://github.com/tarekmonowar/Ai-Studio-BackEnd](https://github.com/tarekmonowar/Ai-Studio-BackEnd)
 
 ![AI Studio Backend](src/app/images/aistuio.png)
 
 ## 📖 What This Project Solves
-AI Studio Backend acts as the real-time gateway and intelligence hub for an interactive voice assistant geared towards technical mock interviews. It bridges the gap between the user's audio input via WebSockets and Azure's VoiceLive AI services. It is responsible for session lifecycle, topic-specific interview questions generation (React, Node, Next.js, Docker, etc.), and securely managing AI provider credentials — delivering a near-zero latency, robust AI interaction.
+
+AI Studio Backend acts as the real-time gateway and intelligence hub for an
+interactive voice assistant geared towards technical mock interviews. It bridges
+the gap between the user's audio input via WebSockets and Azure's VoiceLive AI
+services. It is responsible for session lifecycle, topic-specific interview
+questions generation (React, Node, Next.js, Docker, etc.), and securely managing
+AI provider credentials — delivering a near-zero latency, robust AI interaction.
 
 ## ✨ Features
-- **Low-Latency Audio Relay**: Custom WebSocket middleware (`wsAsyncHandler.ts`) processes bidirectional audio streams securely.
-- **Dynamic Interview Engine**: Serves categorized technical questions across a dozen topics (JavaScript, TypeScript, PostgreSQL, MongoDB, Next.js, etc.).
-- **Session & Transcript Management**: Persists generated conversation logs securely into MongoDB for review.
-- **Provider Abstraction**: Interacts securely with Azure VoiceLive SDK to execute cutting-edge generative voice AI.
+
+- **Low-Latency Audio Relay**: Custom WebSocket middleware (`wsAsyncHandler.ts`)
+  processes bidirectional audio streams securely.
+- **Dynamic Interview Engine**: Serves categorized technical questions across a
+  dozen topics (JavaScript, TypeScript, PostgreSQL, MongoDB, Next.js, etc.).
+- **Session & Transcript Management**: Persists generated conversation logs
+  securely into MongoDB for review.
+- **Provider Abstraction**: Interacts securely with Azure VoiceLive SDK to
+  execute cutting-edge generative voice AI.
 
 ## 🛠️ Tech Stack
+
 - **Runtime**: Node.js & TypeScript
 - **Database**: MongoDB (Mongoose)
 - **WebSockets**: `ws`
@@ -27,18 +44,21 @@ AI Studio Backend acts as the real-time gateway and intelligence hub for an inte
 ## 🚀 Getting Started
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/tarekmonowar/Ai-Studio-BackEnd.git
    cd backend
    ```
 
 2. **Install Dependencies**:
+
    ```bash
    npm install
    ```
 
-3. **Set up Environment Variables**:
-   Create a `.env` file based on your configuration needs:
+3. **Set up Environment Variables**: Create a `.env` file based on your
+   configuration needs:
+
    ```env
    PORT=8787
    VOICELIVE_ENDPOINT=your-azure-voicelive-endpoint
@@ -52,9 +72,11 @@ AI Studio Backend acts as the real-time gateway and intelligence hub for an inte
    ```
 
 ### Endpoints
+
 - **Health Check**: `GET /health`
 - **Voice WebSocket**: `WS /ws`
 
 ---
 
-*For the user interface and client experience, check out the [Frontend Repository](https://github.com/tarekmonowar/Ai-Studio-FrontEnd).*
+_For the user interface and client experience, check out the
+[Frontend Repository](https://github.com/tarekmonowar/Ai-Studio-FrontEnd)._
