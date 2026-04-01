@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
+import { isIP } from "node:net";
 import {
   type AppEnv,
   type InstructionMode,
@@ -34,6 +35,43 @@ const { AzureKeyCredential } = cjsRequire(
 
 const FREE_TIER_LIMIT_MESSAGE =
   "Your free tier has ended. If you want to practice further, please contact Tarek Monowar.";
+
+function normalizeRateLimitIp(rawIp: string): string {
+  const trimmed = rawIp.trim().replace(/^"|"$/g, "");
+  if (!trimmed) {
+    return "unknown";
+  }
+
+  const withoutV4MappedPrefix = trimmed.startsWith("::ffff:")
+    ? trimmed.slice("::ffff:".length)
+    : trimmed;
+
+  const ipv4WithPort = withoutV4MappedPrefix.match(
+    /^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/,
+  );
+  const candidate = ipv4WithPort?.[1] ?? withoutV4MappedPrefix;
+
+  if (isIP(candidate) === 4) {
+    return candidate;
+  }
+
+  if (isIP(candidate) === 6) {
+    return candidate.toLowerCase();
+  }
+
+  return candidate.toLowerCase();
+}
+
+function buildRateLimitKey(rawIp: string): string {
+  const normalizedIp = normalizeRateLimitIp(rawIp);
+
+  if (isIP(normalizedIp) === 4) {
+    const [a, b, c] = normalizedIp.split(".");
+    return `${a}.${b}.${c}.0/24`;
+  }
+
+  return normalizedIp;
+}
 
 type VoiceLiveSession = ReturnType<
   InstanceType<typeof VoiceLiveClient>["createSession"]
@@ -276,11 +314,12 @@ export class VoiceLiveSessionService {
       await ensureMongoConnectionReady();
 
       const now = new Date();
+      const rateLimitKey = buildRateLimitKey(userIp);
       const userSession = await UserSessionModel.findOneAndUpdate(
-        { userIp },
+        { userIp: rateLimitKey },
         {
           $setOnInsert: {
-            userIp,
+            userIp: rateLimitKey,
             firstSeen: now,
           },
         },
