@@ -1,6 +1,8 @@
 import type { AppEnv } from "../config/env.js";
+import { handleAgentChatRoute } from "../modules/ai/ai.router.js";
 import { handleHealthRoute } from "../modules/health/health.router.js";
 import { handleGetLogsRoute } from "../modules/logs/logs.router.js";
+import { handleSendEmailToolRoute } from "../modules/tools/tools.router.js";
 import type {
   HttpRequest,
   HttpResponse,
@@ -16,13 +18,19 @@ export const moduleRoutes: ModuleRouteDefinition[] = [
   { method: "GET", path: "/", route: handleHealthRoute },
   { method: "GET", path: "/health", route: handleHealthRoute },
   { method: "GET", path: "/getLogs", route: handleGetLogsRoute },
+  { method: "POST", path: "/ai/agent-chat", route: handleAgentChatRoute },
+  {
+    method: "POST",
+    path: "/ai/tools/send-email",
+    route: handleSendEmailToolRoute,
+  },
 ];
 
-export function handleHttpRoutes(
+export async function handleHttpRoutes(
   req: HttpRequest,
   res: HttpResponse,
   env: AppEnv,
-): boolean {
+): Promise<boolean> {
   const pathname = getPathname(req);
   const method = (req.method ?? "").toUpperCase();
 
@@ -31,7 +39,7 @@ export function handleHttpRoutes(
       continue;
     }
 
-    if (moduleRoute.route(req, res, env)) {
+    if (await moduleRoute.route(req, res, env)) {
       return true;
     }
   }

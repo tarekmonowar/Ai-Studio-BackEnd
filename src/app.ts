@@ -17,7 +17,7 @@ function handleOptionsRequest(
   }
 
   setCorsHeader(res, env);
-  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.statusCode = 204;
   res.end();
@@ -25,32 +25,40 @@ function handleOptionsRequest(
   return true;
 }
 
+async function handleRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  env: AppEnv,
+): Promise<void> {
+  try {
+    if (handleOptionsRequest(req, res, env)) {
+      return;
+    }
+
+    if (await handleHttpRoutes(req, res, env)) {
+      return;
+    }
+
+    setCorsHeader(res, env);
+    res.statusCode = 404;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ ok: false, message: "Not Found" }));
+  } catch (error) {
+    logger.error("Unhandled HTTP request error", error);
+    setCorsHeader(res, env);
+    res.statusCode = 500;
+    res.setHeader("Content-Type", "application/json");
+    res.end(
+      JSON.stringify({
+        ok: false,
+        message: "Internal Server Error",
+      }),
+    );
+  }
+}
+
 export function createApp(env: AppEnv) {
   return (req: IncomingMessage, res: ServerResponse): void => {
-    try {
-      if (handleOptionsRequest(req, res, env)) {
-        return;
-      }
-
-      if (handleHttpRoutes(req, res, env)) {
-        return;
-      }
-
-      setCorsHeader(res, env);
-      res.statusCode = 404;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ ok: false, message: "Not Found" }));
-    } catch (error) {
-      logger.error("Unhandled HTTP request error", error);
-      setCorsHeader(res, env);
-      res.statusCode = 500;
-      res.setHeader("Content-Type", "application/json");
-      res.end(
-        JSON.stringify({
-          ok: false,
-          message: "Internal Server Error",
-        }),
-      );
-    }
+    void handleRequest(req, res, env);
   };
 }

@@ -41,6 +41,13 @@ const envSchema = z.object({
     .unknown()
     .transform((value) => parseBooleanEnv(value, true)),
   RATE_LIMIT_MINUTES: z.coerce.number().positive().default(15),
+  AZURE_OPENAI_ENDPOINT: z.string().min(1, "AZURE_OPENAI_ENDPOINT is required"),
+  AZURE_OPENAI_API_KEY: z.string().min(1, "AZURE_OPENAI_API_KEY is required"),
+  AZURE_OPENAI_MODEL: z.string().min(1, "AZURE_OPENAI_MODEL is required"),
+  AZURE_OPENAI_DEPLOYMENT: z.string().optional(),
+  AZURE_OPENAI_API_VERSION: z.string().default("2024-10-21"),
+  RESEND_API_KEY: z.string().min(1, "RESEND_API_KEY is required"),
+  EMAIL_FROM: z.string().min(1, "EMAIL_FROM is required"),
 });
 
 export const env: AppEnv = envSchema.parse(process.env);
