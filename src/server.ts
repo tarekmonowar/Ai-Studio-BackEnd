@@ -2,7 +2,7 @@ import http from "node:http";
 import { WebSocketServer } from "ws";
 import { createApp } from "./app.js";
 import { env } from "./app/config/env.js";
-import { registerVoiceSocketRoute } from "./app/modules/voice/voice.router.js";
+import { registerVoiceSocketRoute } from "./app/modules/generativeAi/generativeAi.router.js";
 import { logger } from "./app/utils/logger.js";
 
 const app = createApp(env);

@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod";
 import type { AppEnv } from "../../config/env.js";
 import { readJsonBody, sendJsonResponse } from "../../utils/http.js";
-import { createAgentChatResponse } from "./ai.service.js";
+import { createAgentChatResponse } from "./AiAgents.service.js";
 
 const chatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -36,6 +36,7 @@ export async function handleAgentChatRoute(
     const response = await createAgentChatResponse(parsedRequest, env);
 
     sendJsonResponse(res, {
+      req,
       statusCode: 200,
       payload: {
         ok: true,
@@ -48,6 +49,7 @@ export async function handleAgentChatRoute(
       error instanceof Error ? error.message : "Unable to process AI request.";
 
     sendJsonResponse(res, {
+      req,
       statusCode: 400,
       payload: {
         ok: false,

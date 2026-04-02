@@ -1,5 +1,5 @@
 import type { AppEnv } from "../config/env.js";
-import { handleAgentChatRoute } from "../modules/ai/ai.router.js";
+import { handleAgentChatRoute } from "../modules/AiAgents/AiAgents.router.js";
 import { handleHealthRoute } from "../modules/health/health.router.js";
 import { handleGetLogsRoute } from "../modules/logs/logs.router.js";
 import { handleSendEmailToolRoute } from "../modules/tools/tools.router.js";

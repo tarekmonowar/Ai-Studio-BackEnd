@@ -1,6 +1,7 @@
 import http from "node:http";
 import type { AppEnv } from "../config/env.js";
 import { handleHttpRoutes } from "../routes/index.js";
+import { applyCorsHeaders } from "./cors.js";
 import { logger } from "./logger.js";
 
 export function createHttpServer(env: AppEnv) {
@@ -12,13 +13,13 @@ export function createHttpServer(env: AppEnv) {
 
       res.statusCode = 404;
       res.setHeader("Content-Type", "application/json");
-      res.setHeader("Access-Control-Allow-Origin", env.CORS_ORIGIN);
+      applyCorsHeaders(req, res, env);
       res.end(JSON.stringify({ ok: false, message: "Not Found" }));
     } catch (error) {
       logger.error("Unhandled HTTP request error", error);
       res.statusCode = 500;
       res.setHeader("Content-Type", "application/json");
-      res.setHeader("Access-Control-Allow-Origin", env.CORS_ORIGIN);
+      applyCorsHeaders(req, res, env);
       res.end(JSON.stringify({ ok: false, message: "Internal Server Error" }));
     }
   });

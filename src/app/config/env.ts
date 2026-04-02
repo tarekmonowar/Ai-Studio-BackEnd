@@ -32,7 +32,7 @@ function parseBooleanEnv(value: unknown, defaultValue: boolean): boolean {
 
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8787),
-  CORS_ORIGIN: z.string().default("http://localhost:3000"),
+  CORS_ORIGIN: z.string().default("*"),
   VOICELIVE_ENDPOINT: z.string().min(1, "VOICELIVE_ENDPOINT is required"),
   VOICELIVE_API_KEY: z.string().min(1, "VOICELIVE_API_KEY is required"),
   VOICELIVE_MODEL: z.string().default("gpt-realtime"),

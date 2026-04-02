@@ -1,7 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { AppEnv } from "../config/env.js";
+import { applyCorsHeaders } from "./cors.js";
 
 interface SendJsonOptions {
+  req: IncomingMessage;
   statusCode: number;
   payload: unknown;
   env: AppEnv;
@@ -48,10 +50,10 @@ export async function readJsonBody(
 
 export function sendJsonResponse(
   res: ServerResponse,
-  { statusCode, payload, env }: SendJsonOptions,
+  { req, statusCode, payload, env }: SendJsonOptions,
 ): void {
   res.statusCode = statusCode;
   res.setHeader("Content-Type", "application/json");
-  res.setHeader("Access-Control-Allow-Origin", env.CORS_ORIGIN);
+  applyCorsHeaders(req, res, env);
   res.end(JSON.stringify(payload));
 }

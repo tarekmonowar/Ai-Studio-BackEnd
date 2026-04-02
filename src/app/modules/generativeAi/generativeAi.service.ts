@@ -22,8 +22,11 @@ import { resolveInstructionByMode } from "../../utils/voiceInstructions.js";
 import { logger } from "../../utils/logger.js";
 import { ConversationLogModel } from "./conversationLog.model.js";
 import { UserSessionModel } from "./userSession.model.js";
-import type { ClientControlEvent, ServerEvent } from "./voice.types.js";
-import { resolveVoiceByProfile, resolveVoiceConfig } from "./voice.utils.js";
+import type { ClientControlEvent, ServerEvent } from "./generativeAi.types.js";
+import {
+  resolveVoiceByProfile,
+  resolveVoiceConfig,
+} from "./generativeAi.utils.js";
 
 const cjsRequire = createRequire(import.meta.url);
 const { VoiceLiveClient } = cjsRequire(

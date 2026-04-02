@@ -3,8 +3,8 @@ import { isIP } from "node:net";
 import type { RawData, WebSocket, WebSocketServer } from "ws";
 import { withWsAsyncHandler } from "../../middleware/wsAsyncHandler.js";
 import type { AppEnv } from "../../config/env.js";
-import type { ClientControlEvent, ServerEvent } from "./voice.types.js";
-import { VoiceLiveSessionService } from "./voice.service.js";
+import type { ClientControlEvent, ServerEvent } from "./generativeAi.types.js";
+import { VoiceLiveSessionService } from "./generativeAi.service.js";
 
 function toReadableConnectError(error: unknown): {
   message: string;

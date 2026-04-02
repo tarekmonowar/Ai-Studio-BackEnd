@@ -32,6 +32,7 @@ export async function handleSendEmailToolRoute(
     await sendAgentEmail(parsedBody, env);
 
     sendJsonResponse(res, {
+      req,
       statusCode: 200,
       payload: {
         ok: true,
@@ -44,6 +45,7 @@ export async function handleSendEmailToolRoute(
       error instanceof Error ? error.message : "Unable to send email.";
 
     sendJsonResponse(res, {
+      req,
       statusCode: 400,
       payload: {
         ok: false,

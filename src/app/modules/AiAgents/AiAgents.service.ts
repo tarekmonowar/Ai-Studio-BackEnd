@@ -7,7 +7,7 @@ import type {
   AgentRole,
   AgentToolCall,
   AgentToolName,
-} from "./ai.types.js";
+} from "./AiAgents.types.js";
 
 const mapsToArgsSchema = z.object({
   page_name: z.string().min(1),

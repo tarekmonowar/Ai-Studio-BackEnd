@@ -1,10 +1,15 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { AppEnv } from "./app/config/env.js";
 import { handleHttpRoutes } from "./app/routes/index.js";
+import { applyCorsHeaders, applyPreflightHeaders } from "./app/utils/cors.js";
 import { logger } from "./app/utils/logger.js";
 
-function setCorsHeader(res: ServerResponse, env: AppEnv): void {
-  res.setHeader("Access-Control-Allow-Origin", env.CORS_ORIGIN);
+function setCorsHeader(
+  req: IncomingMessage,
+  res: ServerResponse,
+  env: AppEnv,
+): void {
+  applyCorsHeaders(req, res, env);
 }
 
 function handleOptionsRequest(
@@ -16,9 +21,8 @@ function handleOptionsRequest(
     return false;
   }
 
-  setCorsHeader(res, env);
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  setCorsHeader(req, res, env);
+  applyPreflightHeaders(req, res);
   res.statusCode = 204;
   res.end();
 
@@ -39,13 +43,13 @@ async function handleRequest(
       return;
     }
 
-    setCorsHeader(res, env);
+    setCorsHeader(req, res, env);
     res.statusCode = 404;
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ ok: false, message: "Not Found" }));
   } catch (error) {
     logger.error("Unhandled HTTP request error", error);
-    setCorsHeader(res, env);
+    setCorsHeader(req, res, env);
     res.statusCode = 500;
     res.setHeader("Content-Type", "application/json");
     res.end(
