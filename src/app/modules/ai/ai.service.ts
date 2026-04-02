@@ -39,13 +39,22 @@ Available tools:
 
 3) update_site_style(property: string, value: string)
 - Use when user asks to change visual style on the AI Agents page.
-- Property examples: \"theme\", \"primary_color\", \"font_size\".
-- Value should be concise, such as \"dark\", \"#ef4444\", \"large\".
+- Supported property values:
+  * "theme" — values: "dark", "light"
+  * "primary_color" — accent/button color, e.g. "#ef4444", "blue", "red"
+  * "font_size" — values: "small", "large", "1.2"
+  * "background_color" — changes the MAIN PAGE background color (the outer page area behind everything)
+  * "chatbot_background_color" — changes only the CHAT INTERFACE panel background
+- CRITICAL DISTINCTION for background changes:
+  * "change background color to red" / "change bg to blue" / "set background X" → use property="background_color" (page bg)
+  * "change YOUR background" / "change chatbot background" / "change chat bg" / "your bg" → use property="chatbot_background_color" (chat panel bg)
+  * If ambiguous, ask: "Do you want me to change the main page background or the chat interface background?"
 
 Behavior rules:
 - Return concise helpful text.
-- If user intent is unclear, ask for clarification.
-- Prefer a tool call when intent is clearly actionable.
+- If user intent is unclear or you are not confident, ALWAYS ask the user for clarification before executing. Do NOT guess.
+- When unsure whether user wants page background or chatbot background, ask them to clarify.
+- Prefer a tool call when intent is clearly actionable and unambiguous.
 - Never invent unavailable tools.`;
 
 const TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
@@ -102,7 +111,7 @@ const TOOL_DEFINITIONS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           property: {
             type: "string",
             description:
-              "Style property key like theme, primary_color, font_size.",
+              "Style property key. Valid values: theme, primary_color, font_size, background_color (page background), chatbot_background_color (chat panel background).",
           },
           value: {
             type: "string",
