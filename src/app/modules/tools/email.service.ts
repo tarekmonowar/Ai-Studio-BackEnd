@@ -6,7 +6,7 @@ interface SendEmailInput {
   body: string;
 }
 
-const SUBJECT = "Message from Tarek Monowar";
+const SUBJECT = "Message from Ai-Studio";
 const PHYSICAL_ADDRESS = "Sylhet, Bangladesh";
 const UNSUBSCRIBE_BASE_URL = "https://tarekmonowar.dev/unsubscribe";
 
@@ -48,17 +48,6 @@ function ensureProfessionalBody(body: string): string {
 
   if (!/[.!?]$/.test(normalized)) {
     normalized += ".";
-  }
-
-  const extraSentences = [
-    "Thank you for your time and attention.",
-    "Please feel free to reply if you need any clarification.",
-  ];
-
-  let index = 0;
-  while (countSentences(normalized) < 3 && index < extraSentences.length) {
-    normalized += ` ${extraSentences[index]}`;
-    index += 1;
   }
 
   return normalized;
@@ -110,22 +99,46 @@ function buildHtml(body: string, recipient: string): string {
     .map((sentence) => sentence.trim())
     .filter((sentence) => sentence.length > 0)
     .map(
-      (sentence) => `<p style="margin:0 0 12px;">${escapeHtml(sentence)}</p>`,
+      (sentence) => `<p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: #333333;">${escapeHtml(sentence)}</p>`,
     )
     .join("");
 
-  return `
-<div style="font-family:Arial,sans-serif; font-size:15px; line-height:1.6; color:#111827;">
-  ${bodyHtml}
-  <div style="margin-top:16px; border-top:1px solid #e5e7eb; padding-top:12px; font-size:13px; color:#374151;">
-    <p style="margin:0;">Best regards,</p>
-    <p style="margin:4px 0 0; font-weight:600;">Tarek Monowar</p>
-    <p style="margin:6px 0 0;">${escapeHtml(PHYSICAL_ADDRESS)}</p>
-    <p style="margin:8px 0 0;">
-      <a href="${unsubscribeUrl}" style="color:#0f766e; text-decoration:underline;">Unsubscribe</a>
-    </p>
-  </div>
-</div>`;
+  return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f7f9fc; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f7f9fc; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden;">
+                    <tr>
+                        <td style="padding: 40px;">
+                            ${bodyHtml}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background-color: #f8fafc; padding: 30px 40px; border-top: 1px solid #e2e8f0;">
+                            <p style="margin: 0; font-size: 14px; color: #64748b;">Best regards,</p>
+                            <p style="margin: 4px 0 0; font-size: 16px; font-weight: bold; color: #0f172a;">Tarek Monowar</p>
+                            <p style="margin: 4px 0 0; font-size: 13px; color: #64748b;">${escapeHtml(PHYSICAL_ADDRESS)}</p>
+                            
+                            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
+                                <p style="margin: 0; font-size: 12px; color: #94a3b8; text-align: center;">
+                                    If you no longer wish to receive these emails, you can <a href="${unsubscribeUrl}" style="color: #3b82f6; text-decoration: none;">unsubscribe here</a>.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`;
 }
 
 export async function sendAgentEmail(
