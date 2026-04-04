@@ -46,7 +46,8 @@ const envSchema = z.object({
   AZURE_OPENAI_MODEL: z.string().min(1, "AZURE_OPENAI_MODEL is required"),
   AZURE_OPENAI_DEPLOYMENT: z.string().optional(),
   AZURE_OPENAI_API_VERSION: z.string().default("2024-10-21"),
-  RESEND_API_KEY: z.string().min(1, "RESEND_API_KEY is required"),
+  EMAIL_USER: z.string().min(1, "EMAIL_USER is required"),
+  EMAIL_PASS: z.string().min(1, "EMAIL_PASS is required"),
   EMAIL_FROM: z.string().min(1, "EMAIL_FROM is required"),
 });
 

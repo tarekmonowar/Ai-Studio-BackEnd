@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import type { AppEnv } from "../../config/env.js";
 
 interface SendEmailInput {
@@ -7,13 +7,13 @@ interface SendEmailInput {
 }
 
 const SUBJECT = "Message from Tarek Monowar";
-const PHYSICAL_ADDRESS = "123 Park Avenue, New York, NY 10017, USA";
+const PHYSICAL_ADDRESS = "Sylhet, Bangladesh";
 const UNSUBSCRIBE_BASE_URL = "https://tarekmonowar.dev/unsubscribe";
 
 function assertEmailConfig(env: AppEnv): void {
-  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
+  if (!env.EMAIL_USER || !env.EMAIL_PASS || !env.EMAIL_FROM) {
     throw new Error(
-      "Email tool is not configured. Set RESEND_API_KEY and EMAIL_FROM.",
+      "Email tool is not configured. Set EMAIL_USER, EMAIL_PASS, and EMAIL_FROM.",
     );
   }
 }
@@ -89,7 +89,7 @@ function improveSenderLocalPart(address: string): string {
 
 function formatFromAddress(rawFrom: string): string {
   const address = improveSenderLocalPart(getEmailAddress(rawFrom));
-  return `Tarek Monowar <${address}>`;
+  return `"Tarek Monowar" <${address}>`;
 }
 
 function buildUnsubscribeUrl(recipient: string): string {
@@ -134,25 +134,32 @@ export async function sendAgentEmail(
 ): Promise<void> {
   assertEmailConfig(env);
 
-  const resend = new Resend(env.RESEND_API_KEY);
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: env.EMAIL_USER,
+      pass: env.EMAIL_PASS,
+    },
+  });
+
   const from = formatFromAddress(env.EMAIL_FROM);
   const normalizedBody = ensureProfessionalBody(input.body);
   const unsubscribeUrl = buildUnsubscribeUrl(input.recipient);
 
-  const { error } = await resend.emails.send({
-    from,
-    to: [input.recipient],
-    replyTo: getEmailAddress(from),
-    subject: SUBJECT,
-    text: buildPlainText(normalizedBody, input.recipient),
-    html: buildHtml(normalizedBody, input.recipient),
-    headers: {
-      "List-Unsubscribe": `<${unsubscribeUrl}>`,
-      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-    },
-  });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
+  try {
+    await transporter.sendMail({
+      from,
+      to: input.recipient,
+      replyTo: getEmailAddress(from),
+      subject: SUBJECT,
+      text: buildPlainText(normalizedBody, input.recipient),
+      html: buildHtml(normalizedBody, input.recipient),
+      headers: {
+        "List-Unsubscribe": `<${unsubscribeUrl}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
+    });
+  } catch (error: any) {
+    throw new Error(`Email sending error: ${error.message}`);
   }
 }

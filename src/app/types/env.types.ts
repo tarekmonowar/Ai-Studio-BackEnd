@@ -16,6 +16,7 @@ export interface AppEnv {
   AZURE_OPENAI_MODEL: string;
   AZURE_OPENAI_DEPLOYMENT?: string;
   AZURE_OPENAI_API_VERSION: string;
-  RESEND_API_KEY: string;
+  EMAIL_USER: string;
+  EMAIL_PASS: string;
   EMAIL_FROM: string;
 }
