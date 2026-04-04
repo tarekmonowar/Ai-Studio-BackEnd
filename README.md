@@ -1,4 +1,4 @@
-# 🎙️ AI Studio - Backend Voice Gateway
+# 🤖 AI Studio - Autonomous Agents & Generative AI Backend
 
 **Live Demo**:
 [https://ai-studio.tarekmonowar.dev/](https://ai-studio.tarekmonowar.dev/) |
@@ -15,31 +15,30 @@
 
 ## 📖 What This Project Solves
 
-AI Studio Backend acts as the real-time gateway and intelligence hub for an
-interactive voice assistant geared towards technical mock interviews. It bridges
-the gap between the user's audio input via WebSockets and Azure's VoiceLive AI
-services. It is responsible for session lifecycle, topic-specific interview
-questions generation (React, Node, Next.js, Docker, etc.), and securely managing
-AI provider credentials — delivering a near-zero latency, robust AI interaction.
+The AI Studio Backend acts as the centralized nervous system for **Autonomous AI Agents**. Instead of solely serving traditional text completion logic, this backend natively parses massive LLM workloads to execute robust server-side function calling arrays.
 
-## ✨ Features
+It forms the crucial bridge parsing natural language intents from the user via the frontend, actively routing them into systematic automated processes—whether that means commanding the frontend application to autonomously redirect pages and repaint styling patterns, or triggering heavy server-side protocols like assembling personalized SMTP email packets (via securely optimized Nodemailer transports) without any manual click layers dynamically.
 
-- **Low-Latency Audio Relay**: Custom WebSocket middleware (`wsAsyncHandler.ts`)
-  processes bidirectional audio streams securely.
-- **Dynamic Interview Engine**: Serves categorized technical questions across a
-  dozen topics (JavaScript, TypeScript, PostgreSQL, MongoDB, Next.js, etc.).
-- **Session & Transcript Management**: Persists generated conversation logs
-  securely into MongoDB for review.
-- **Provider Abstraction**: Interacts securely with Azure VoiceLive SDK to
-  execute cutting-edge generative voice AI.
+## ✨ AI Automation Features
+
+- **Server-Side Function Orchestration**: Dynamically serves strictly typed Zod schemas mapping system functions to LLM function-calling capabilities. 
+- **Automated Mail Distribution Engine**: Ingests deterministic agent instructions, auto-formatting, heavily sanitizing anti-spam signals, and instantly firing HTML styled emails natively over optimized Nodemailer layouts.
+- **Provider Abstraction via Azure AI**: Hooks securely into immense Azure OpenAI generative instances driving near-instant intelligence models ensuring intent-parsing latency is basically untraceable.
+- **Stateless Intelligence Design**: Capable of reading highly variable runtime context arrays natively on demand, instructing the agent flawlessly when executing dynamic operations securely.
+
+## 🧠 Generative AI Capabilities
+
+![Generative AI Backend](src/app/images/aigenerative.png)
+
+The backend system heavily and natively supports immense **Generative AI capabilities**. It functions as a highly secure API proxy to the heaviest large language models available. It carefully coordinates prompt structure rules, gracefully catches execution limits, and safely streams dense technical text-completion insight outputs immediately back across network pipelines over to the user interface simultaneously.
 
 ## 🛠️ Tech Stack
 
 - **Runtime**: Node.js & TypeScript
-- **Database**: MongoDB (Mongoose)
-- **WebSockets**: `ws`
-- **Validation**: Zod
-- **AI Integrations**: Azure VoiceLive SDK
+- **Database Architecture**: MongoDB (Mongoose)
+- **AI Integrations**: Azure OpenAI capabilities
+- **Email Infrastructure**: Nodemailer / SMTP
+- **Validations**: Zod type-safe parsing
 
 ## 🚀 Getting Started
 
@@ -61,9 +60,14 @@ AI provider credentials — delivering a near-zero latency, robust AI interactio
 
    ```env
    PORT=8787
-   VOICELIVE_ENDPOINT=your-azure-voicelive-endpoint
-   VOICELIVE_API_KEY=your-azure-voicelive-api-key
-   MONGODB_URI=your-mongodb-connection-string
+   AZURE_OPENAI_ENDPOINT=your-azure-openai-endpoint
+   AZURE_OPENAI_API_KEY=your-azure-openai-api-key
+   AZURE_OPENAI_MODEL=your-deployment-name
+   
+   # Email tool config
+   EMAIL_USER=your_smtp_email@gmail.com
+   EMAIL_PASS=your_smtp_password
+   EMAIL_FROM=your_smtp_email@gmail.com
    ```
 
 4. **Run the Development Server**:
@@ -73,16 +77,10 @@ AI provider credentials — delivering a near-zero latency, robust AI interactio
 
 ### Endpoints
 
-- **Health Check**: `GET /health`
-- **Voice WebSocket**: `WS /ws`
+- **AI Agent Tool Actions**: `POST /ai/tools/send-email`
+- **Agent Chat & Orchestration**: `POST /ai/agent-chat`
 
 ---
 
-_For the user interface and client experience, check out the
+_For the visual user interface connecting directly to this framework, trace the
 [Frontend Repository](https://github.com/tarekmonowar/Ai-Studio-FrontEnd)._
-
-## 🧠 Generative AI Capabilities
-
-![Generative AI Backend](src/app/images/aigenerative.png)
-
-The backend system dynamically supports comprehensive **Generative AI** capabilities. It acts as a highly secure, heavily optimized API proxy to advanced language models, coordinating active prompt state, managing context limits, and reliably streaming complex text completion insights back to the user application concurrently with the voice gateway.
