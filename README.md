@@ -11,7 +11,7 @@
 - Backend:
   [https://github.com/tarekmonowar/Ai-Studio-BackEnd](https://github.com/tarekmonowar/Ai-Studio-BackEnd)
 
-![AI Studio Backend](src/app/images/aistuio.png)
+![AI Studio Backend - AI Agents](src/app/images/aiagents.png)
 
 ## 📖 What This Project Solves
 
@@ -80,3 +80,9 @@ AI provider credentials — delivering a near-zero latency, robust AI interactio
 
 _For the user interface and client experience, check out the
 [Frontend Repository](https://github.com/tarekmonowar/Ai-Studio-FrontEnd)._
+
+## 🧠 Generative AI Capabilities
+
+![Generative AI Backend](src/app/images/aigenerative.png)
+
+The backend system dynamically supports comprehensive **Generative AI** capabilities. It acts as a highly secure, heavily optimized API proxy to advanced language models, coordinating active prompt state, managing context limits, and reliably streaming complex text completion insights back to the user application concurrently with the voice gateway.
