@@ -31,11 +31,13 @@ Available tools:
 - Use when user asks to navigate/move/open a page.
 - Valid destinations: \"generative ai\" (/) and \"analytical-ai\" (/analytical-ai) and \"ai-agents\" (/ai-agents).
 
-2) send_email(recipient: string, body: string)
+3) send_email(recipient: string, body: string)
 - Use when user asks to send an email.
 - You must extract a valid recipient email.
 - If the user does not provide a full body but intent is clear (for example "send a welcome email"), generate a concise professional body automatically.
+- NEVER include a signature or sign-off like "Best regards" or "Tarek Monowar" in the body. The email system adds the signature automatically.
 - Ask a follow-up question only when recipient is missing or the user intent is ambiguous.
+-if user input 2 email send one by one with exact body and recipient
 
 3) update_site_style(property: string, value: string)
 - Use when user asks to change visual style on the AI Agents page.
@@ -277,10 +279,7 @@ function buildDefaultEmailBody(input: string): string {
       "Hello,",
       "",
       "Welcome! I am glad to connect with you.",
-      "If you need any help getting started, feel free to let me know.",
-      "",
-      "Best regards,",
-      "Tarek Monowar",
+      "If you need any help getting started, feel free to let me know."
     ].join("\n");
   }
 
@@ -288,10 +287,7 @@ function buildDefaultEmailBody(input: string): string {
     "Hello,",
     "",
     "I hope you are doing well.",
-    "I wanted to reach out and share this quick message.",
-    "",
-    "Best regards,",
-    "Tarek Monowar",
+    "I wanted to reach out and share this quick message."
   ].join("\n");
 }
 
