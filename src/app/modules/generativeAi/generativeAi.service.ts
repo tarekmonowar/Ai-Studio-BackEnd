@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
-import { isIP } from "node:net";
 import {
   type AppEnv,
   type InstructionMode,
@@ -27,6 +26,15 @@ import {
   resolveVoiceByProfile,
   resolveVoiceConfig,
 } from "./generativeAi.utils.js";
+import {
+  FREE_TIER_LIMIT_MESSAGE,
+  buildRateLimitKey,
+} from "./generativeAi.rateLimit.js";
+import type {
+  InterviewTrackMode,
+  LogRole,
+  PendingLogMessage,
+} from "./generativeAi.transcriptTracker.js";
 
 const cjsRequire = createRequire(import.meta.url);
 const { VoiceLiveClient } = cjsRequire(
@@ -35,46 +43,6 @@ const { VoiceLiveClient } = cjsRequire(
 const { AzureKeyCredential } = cjsRequire(
   "@azure/core-auth",
 ) as typeof import("@azure/core-auth");
-
-const FREE_TIER_LIMIT_MESSAGE =
-  "Your free tier has ended. If you want to practice further, please contact Tarek Monowar.";
-
-function normalizeRateLimitIp(rawIp: string): string {
-  const trimmed = rawIp.trim().replace(/^"|"$/g, "");
-  if (!trimmed) {
-    return "unknown";
-  }
-
-  const withoutV4MappedPrefix = trimmed.startsWith("::ffff:")
-    ? trimmed.slice("::ffff:".length)
-    : trimmed;
-
-  const ipv4WithPort = withoutV4MappedPrefix.match(
-    /^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/,
-  );
-  const candidate = ipv4WithPort?.[1] ?? withoutV4MappedPrefix;
-
-  if (isIP(candidate) === 4) {
-    return candidate;
-  }
-
-  if (isIP(candidate) === 6) {
-    return candidate.toLowerCase();
-  }
-
-  return candidate.toLowerCase();
-}
-
-function buildRateLimitKey(rawIp: string): string {
-  const normalizedIp = normalizeRateLimitIp(rawIp);
-
-  if (isIP(normalizedIp) === 4) {
-    const [a, b, c] = normalizedIp.split(".");
-    return `${a}.${b}.${c}.0/24`;
-  }
-
-  return normalizedIp;
-}
 
 type VoiceLiveSession = ReturnType<
   InstanceType<typeof VoiceLiveClient>["createSession"]
@@ -89,21 +57,6 @@ interface VoiceLiveSessionHandlers {
 interface VoiceLiveSessionOptions {
   userIp?: string;
 }
-
-type LogRole = "user" | "assistant";
-
-interface PendingLogMessage {
-  role: LogRole;
-  content: string;
-  timestamp: Date;
-  topic: string;
-}
-
-type InterviewTrackMode =
-  | "undecided"
-  | "interpersonal"
-  | "technical-general"
-  | "technical-topic";
 
 export class VoiceLiveSessionService {
   private readonly config: AppEnv;

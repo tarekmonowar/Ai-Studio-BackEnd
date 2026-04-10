@@ -1,61 +1,15 @@
 import type { IncomingMessage } from "node:http";
-import { isIP } from "node:net";
 import type { RawData, WebSocket, WebSocketServer } from "ws";
 import { withWsAsyncHandler } from "../../middleware/wsAsyncHandler.js";
 import type { AppEnv } from "../../config/env.js";
 import type { ClientControlEvent, ServerEvent } from "./generativeAi.types.js";
 import { VoiceLiveSessionService } from "./generativeAi.service.js";
+import { toReadableConnectError } from "./generativeAi.connectErrors.js";
+import { resolveUserIp } from "./generativeAi.ipResolver.js";
 
-function toReadableConnectError(error: unknown): {
-  message: string;
-  code: string;
-  hint: string;
-} {
-  const rawMessage =
-    error instanceof Error ? error.message : "Voice service failed to connect";
-  const normalized = rawMessage.toLowerCase();
+// ─── WebSocket Helpers ───────────────────────────────────────────────────────
 
-  if (normalized.includes("require is not defined")) {
-    return {
-      message: "Backend SDK runtime mismatch while initializing VoiceLive.",
-      code: "BACKEND_SDK_RUNTIME",
-      hint: "Restart backend after reinstalling dependencies in backend folder.",
-    };
-  }
-
-  if (
-    normalized.includes("401") ||
-    normalized.includes("403") ||
-    normalized.includes("unauthorized") ||
-    normalized.includes("forbidden")
-  ) {
-    return {
-      message: "Azure authentication failed.",
-      code: "AZURE_AUTH_FAILED",
-      hint: "Check VOICELIVE_API_KEY and VOICELIVE_ENDPOINT in backend .env.",
-    };
-  }
-
-  if (
-    normalized.includes("enotfound") ||
-    normalized.includes("econnrefused") ||
-    normalized.includes("timed out") ||
-    normalized.includes("network")
-  ) {
-    return {
-      message: "Backend could not reach Azure VoiceLive service.",
-      code: "AZURE_NETWORK_ERROR",
-      hint: "Verify internet connectivity and the VoiceLive endpoint URL.",
-    };
-  }
-
-  return {
-    message: rawMessage,
-    code: "VOICE_CONNECT_FAILED",
-    hint: "Check backend logs for the full error and restart the server.",
-  };
-}
-
+/** Parses a raw WebSocket message as a JSON control event. Returns null on failure. */
 function parseControlEvent(rawData: RawData): ClientControlEvent | null {
   try {
     return JSON.parse(rawData.toString()) as ClientControlEvent;
@@ -64,96 +18,22 @@ function parseControlEvent(rawData: RawData): ClientControlEvent | null {
   }
 }
 
+/** Sends a typed server event to the WebSocket client if the connection is still open. */
 function sendEvent(socket: WebSocket, event: ServerEvent): void {
   if (socket.readyState !== socket.OPEN) {
     return;
   }
-
   socket.send(JSON.stringify(event));
 }
 
-function normalizeIpCandidate(candidate: string): string | null {
-  const trimmed = candidate.trim().replace(/^"|"$/g, "");
-  if (!trimmed || trimmed.toLowerCase() === "unknown") {
-    return null;
-  }
+// ─── Route Registration ──────────────────────────────────────────────────────
 
-  const withoutV4MappedPrefix = trimmed.startsWith("::ffff:")
-    ? trimmed.slice("::ffff:".length)
-    : trimmed;
-
-  const bracketedIpv6 = withoutV4MappedPrefix.match(/^\[([^\]]+)\](?::\d+)?$/);
-  if (bracketedIpv6?.[1]) {
-    const host = bracketedIpv6[1];
-    return isIP(host) ? host : null;
-  }
-
-  if (isIP(withoutV4MappedPrefix)) {
-    return withoutV4MappedPrefix;
-  }
-
-  const ipv4WithPort = withoutV4MappedPrefix.match(
-    /^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/,
-  );
-  if (ipv4WithPort?.[1] && isIP(ipv4WithPort[1])) {
-    return ipv4WithPort[1];
-  }
-
-  return null;
-}
-
-function resolveUserIp(request: IncomingMessage): string {
-  const forwarded = request.headers["x-forwarded-for"];
-
-  if (typeof forwarded === "string") {
-    const first = forwarded.split(",")[0]?.trim();
-    const normalized = first ? normalizeIpCandidate(first) : null;
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  const realIp = request.headers["x-real-ip"];
-  if (typeof realIp === "string") {
-    const normalized = normalizeIpCandidate(realIp);
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  const clientIp = request.headers["x-client-ip"];
-  if (typeof clientIp === "string") {
-    const normalized = normalizeIpCandidate(clientIp);
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  if (Array.isArray(forwarded) && forwarded.length > 0) {
-    const first = forwarded[0]?.split(",")[0]?.trim();
-    const normalized = first ? normalizeIpCandidate(first) : null;
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  const normalizedSocketIp = normalizeIpCandidate(
-    request.socket.remoteAddress ?? "",
-  );
-  if (normalizedSocketIp) {
-    return normalizedSocketIp;
-  }
-
-  if (typeof forwarded === "string") {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) {
-      return first;
-    }
-  }
-
-  return request.socket.remoteAddress ?? "unknown";
-}
-
+/**
+ * Registers the WebSocket route that handles all real-time voice sessions.
+ *
+ * Each WebSocket connection creates a new VoiceLiveSessionService instance
+ * which manages the full lifecycle: connect → stream audio → disconnect.
+ */
 export function registerVoiceSocketRoute(
   wss: WebSocketServer,
   env: AppEnv,
@@ -176,6 +56,7 @@ export function registerVoiceSocketRoute(
       },
     );
 
+    // Handle incoming messages: binary = audio data, text = control events
     socket.on(
       "message",
       withWsAsyncHandler(socket, async (rawData, isBinary) => {
@@ -199,6 +80,7 @@ export function registerVoiceSocketRoute(
           return;
         }
 
+        // session.start is the only event that triggers the VoiceLive connection
         if (event.type === "session.start") {
           try {
             await service.connect(
@@ -223,6 +105,7 @@ export function registerVoiceSocketRoute(
       }),
     );
 
+    // Disconnect the VoiceLive session cleanly when the socket closes or errors
     socket.on(
       "close",
       withWsAsyncHandler(socket, async () => {
