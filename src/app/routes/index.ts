@@ -1,6 +1,10 @@
 import type { AppEnv } from "../config/env.js";
 import { handleAgentChatRoute } from "../modules/AiAgents/AiAgents.router.js";
 import { handleMessengerChatRoute } from "../modules/aiMessenger/messenger.route.js";
+import {
+  handleVectorStoreRoute,
+  handleVectorQueryRoute,
+} from "../modules/analyticalAi/analyticalAi.router.js";
 import { handleHealthRoute } from "../modules/health/health.router.js";
 import { handleGetLogsRoute } from "../modules/logs/logs.router.js";
 import { handleSendEmailToolRoute } from "../modules/tools/tools.router.js";
@@ -21,6 +25,8 @@ export const moduleRoutes: ModuleRouteDefinition[] = [
   { method: "GET", path: "/getLogs", route: handleGetLogsRoute },
   { method: "POST", path: "/ai/messenger-chat", route: handleMessengerChatRoute },
   { method: "POST", path: "/ai/agent-chat", route: handleAgentChatRoute },
+  { method: "POST", path: "/ai/vector/store", route: handleVectorStoreRoute },
+  { method: "POST", path: "/ai/vector/query", route: handleVectorQueryRoute },
   {
     method: "POST",
     path: "/ai/tools/send-email",

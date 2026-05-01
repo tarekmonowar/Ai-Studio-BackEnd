@@ -19,4 +19,7 @@ export interface AppEnv {
   EMAIL_USER: string;
   EMAIL_PASS: string;
   EMAIL_FROM: string;
+  SUPABASE_URL: string;
+  SUPABASE_API_KEY: string;
+  AI_EMBEDDING_MODEL: string;
 }

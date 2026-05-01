@@ -49,6 +49,9 @@ const envSchema = z.object({
   EMAIL_USER: z.string().min(1, "EMAIL_USER is required"),
   EMAIL_PASS: z.string().min(1, "EMAIL_PASS is required"),
   EMAIL_FROM: z.string().min(1, "EMAIL_FROM is required"),
+  SUPABASE_URL: z.string().min(1, "SUPABASE_URL is required"),
+  SUPABASE_API_KEY: z.string().min(1, "SUPABASE_API_KEY is required"),
+  AI_EMBEDDING_MODEL: z.string().default("text-embedding-3-large"),
 });
 
 export const env: AppEnv = envSchema.parse(process.env);
