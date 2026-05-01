@@ -13,20 +13,12 @@ const agentChatRequestSchema = z.object({
   messages: z.array(chatMessageSchema).min(1),
 });
 
-function getPathname(req: IncomingMessage): string {
-  return new URL(req.url ?? "/", "http://localhost").pathname;
-}
-
 export async function handleAgentChatRoute(
   req: IncomingMessage,
   res: ServerResponse,
   env: AppEnv,
 ): Promise<boolean> {
   if (req.method !== "POST") {
-    return false;
-  }
-
-  if (getPathname(req) !== "/ai/agent-chat") {
     return false;
   }
 

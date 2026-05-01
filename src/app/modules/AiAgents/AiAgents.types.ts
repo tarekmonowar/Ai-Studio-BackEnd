@@ -37,3 +37,7 @@ export interface AgentChatResponse {
   assistantMessage: string;
   toolCalls: AgentToolCall[];
 }
+
+export interface messengerChatResponse {
+  assistantMessage: string;
+}

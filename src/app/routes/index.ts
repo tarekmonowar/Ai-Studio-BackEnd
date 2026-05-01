@@ -1,5 +1,6 @@
 import type { AppEnv } from "../config/env.js";
 import { handleAgentChatRoute } from "../modules/AiAgents/AiAgents.router.js";
+import { handleMessengerChatRoute } from "../modules/aiMessenger/messenger.route.js";
 import { handleHealthRoute } from "../modules/health/health.router.js";
 import { handleGetLogsRoute } from "../modules/logs/logs.router.js";
 import { handleSendEmailToolRoute } from "../modules/tools/tools.router.js";
@@ -18,6 +19,7 @@ export const moduleRoutes: ModuleRouteDefinition[] = [
   { method: "GET", path: "/", route: handleHealthRoute },
   { method: "GET", path: "/health", route: handleHealthRoute },
   { method: "GET", path: "/getLogs", route: handleGetLogsRoute },
+  { method: "POST", path: "/ai/messenger-chat", route: handleMessengerChatRoute },
   { method: "POST", path: "/ai/agent-chat", route: handleAgentChatRoute },
   {
     method: "POST",
@@ -30,19 +32,37 @@ export async function handleHttpRoutes(
   req: HttpRequest,
   res: HttpResponse,
   env: AppEnv,
-): Promise<boolean> {
+) {
   const pathname = getPathname(req);
   const method = (req.method ?? "").toUpperCase();
 
-  for (const moduleRoute of moduleRoutes) {
-    if (moduleRoute.method !== method || moduleRoute.path !== pathname) {
-      continue;
-    }
-
-    if (await moduleRoute.route(req, res, env)) {
+  for (const route of moduleRoutes) {
+    if (route.method === method && route.path === pathname) {
+      await route.route(req, res, env);
       return true;
     }
   }
 
   return false;
 }
+
+// export async function handleHttpRoutes(
+//   req: HttpRequest,
+//   res: HttpResponse,
+//   env: AppEnv,
+// ): Promise<boolean> {
+//   const pathname = getPathname(req);
+//   const method = (req.method ?? "").toUpperCase();
+
+//   for (const moduleRoute of moduleRoutes) {
+//     if (moduleRoute.method !== method || moduleRoute.path !== pathname) {
+//       continue;
+//     }
+
+//     if (await moduleRoute.route(req, res, env)) {
+//       return true;
+//     }
+//   }
+
+//   return false;
+// }

@@ -39,6 +39,10 @@ async function handleRequest(
       return;
     }
 
+    // Apply CORS headers early — before route handlers run —
+    // so every response (including streaming ones) gets them.
+    setCorsHeader(req, res, env);
+
     if (await handleHttpRoutes(req, res, env)) {
       return;
     }
