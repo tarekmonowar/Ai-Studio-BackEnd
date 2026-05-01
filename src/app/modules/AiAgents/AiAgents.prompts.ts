@@ -8,7 +8,7 @@ You can choose function tools when the user explicitly asks an actionable task.
 Available tools:
 1) maps_to(page_name: string)
 - Use when user asks to navigate/move/open a page.
-- Valid destinations: "generative ai" (/) and "analytical-ai" (/analytical-ai) and "ai-agents" (/ai-agents).
+- Valid destinations: "ai-agents" (/) and "analytical-ai" (/analytical-ai) and "generative ai" (/generative-ai).
 
 3) send_email(recipient: string, body: string)
 - Use when user asks to send an email.
