@@ -63,7 +63,7 @@ export async function queryEmbedding(
   const { data, error } = await supabase.rpc("match_documents", {
     query_embedding: embedding,
     match_threshold: 0.1,
-    match_count: 5,
+    match_count: 3,
   });
 
   if (error) {
