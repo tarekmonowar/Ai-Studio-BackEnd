@@ -36,7 +36,9 @@ Type: AI Studio / AI Showcase Platform
    - Full dark/light theme support with dynamic CSS variable injection
 
 3. Analytical AI (Page "/analytical-ai")
-   - Coming soon — will feature data-driven insights, model analysis, and AI reporting
+   - Features a Vector Database semantic search using OpenAI Embeddings and Supabase
+   - Stores text which is then embedded into vector representations (1536 dimensions) and saved to a Supabase PostgreSQL database
+   - Users can query the database using semantic search, finding the nearest vector matches to retrieve semantically similar documents
 
 4. AI Chat Messenger (Floating Widget — Available on Every Page)
    - A floating chat bubble in the bottom-right corner of every page
