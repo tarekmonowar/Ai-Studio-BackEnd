@@ -299,3 +299,13 @@ export function buildInterviewQuestionContext(
 
   return lines.join("\n").trim();
 }
+
+export function getAvailableTopics(): Array<{
+  topic: string;
+  questionCount: number;
+}> {
+  return INTERVIEW_QUESTION_SETS.map((set) => ({
+    topic: set.topic,
+    questionCount: set.entries.length,
+  }));
+}

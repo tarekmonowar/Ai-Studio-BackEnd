@@ -6,13 +6,13 @@ import {
   type SpeakerProfile,
 } from "../../config/env.js";
 import {
-  buildInterviewQuestionContext,
-  detectTechnicalTopicSelection,
-  extractAskedQuestionIdsFromTranscript,
+  buildInterviewContext,
+  detectTopicSelection,
+  extractAskedQuestionIds,
   normalizeQuestionText,
   resolveQuestionIdPrefixForTopic,
   type InterviewTopicSelection,
-} from "../../utils/interviewQuestionBank.js";
+} from "./mcp.client.js";
 import {
   ensureMongoConnection,
   ensureMongoConnectionReady,
@@ -72,6 +72,8 @@ export class VoiceLiveSessionService {
   private rateLimitFirstSeenMs: number | null = null;
   private instructionMode: InstructionMode | undefined;
   private lastAppliedInstructions: string | null = null;
+  private firstGreetingCompleted = false;
+  private responseStartedAt = 0;
   private trackMode: InterviewTrackMode = "undecided";
   private lockedTopic: InterviewTopicSelection | null = null;
   private lockedTopicAskedAtStart = 0;
@@ -142,6 +144,9 @@ export class VoiceLiveSessionService {
       },
       onConversationItemInputAudioTranscriptionCompleted: async (event) => {
         if (event.transcript) {
+          if (!this.firstGreetingCompleted) return;
+          if (this.responseActive) return;
+
           this.handlers.onEvent({
             type: "transcript.user",
             text: event.transcript,
@@ -149,7 +154,7 @@ export class VoiceLiveSessionService {
 
           this.saveLogToMongo("user", event.transcript);
 
-          const routeChanged = this.updateRoutingFromUserTranscript(
+          const routeChanged = await this.updateRoutingFromUserTranscript(
             event.transcript,
           );
           if (routeChanged) {
@@ -160,6 +165,7 @@ export class VoiceLiveSessionService {
       },
       onResponseCreated: async () => {
         this.responseActive = true;
+        this.responseStartedAt = Date.now();
         this.handlers.onEvent({ type: "assistant.thinking" });
       },
       onResponseAudioDelta: async (event) => {
@@ -186,7 +192,7 @@ export class VoiceLiveSessionService {
 
         this.saveLogToMongo("assistant", event.transcript);
 
-        const tracked = this.trackAskedQuestionsFromTranscript(
+        const tracked = await this.trackAskedQuestionsFromTranscript(
           event.transcript,
         );
 
@@ -197,13 +203,23 @@ export class VoiceLiveSessionService {
       },
       onResponseDone: async () => {
         this.responseActive = false;
+        this.responseStartedAt = 0;
+
+        if (!this.firstGreetingCompleted) {
+          this.firstGreetingCompleted = true;
+        }
+
         this.handlers.onEvent({ type: "assistant.done" });
       },
       onInputAudioBufferSpeechStarted: async () => {
+        if (!this.firstGreetingCompleted) return;
+        if (this.isLikelyEcho()) return;
+
         this.handlers.onEvent({ type: "vad.server.speech_started" });
         await this.cancelResponseIfActive();
       },
       onInputAudioBufferSpeechStopped: async () => {
+        if (!this.firstGreetingCompleted) return;
         this.handlers.onEvent({ type: "vad.server.speech_stopped" });
       },
       onServerError: async (event) => {
@@ -233,7 +249,7 @@ export class VoiceLiveSessionService {
 
     await session.connect();
 
-    const selectedInstructions = this.resolveSessionInstructions();
+    const selectedInstructions = await this.resolveSessionInstructions();
     const selectedVoice = resolveVoiceByProfile(speakerProfile);
 
     await session.updateSession({
@@ -245,11 +261,11 @@ export class VoiceLiveSessionService {
       outputAudioFormat: "pcm16",
       turnDetection: {
         type: "server_vad",
-        threshold: 0.45,
-        prefixPaddingInMs: 300,
-        silenceDurationInMs: 700,
+        threshold: 0.5,
+        prefixPaddingInMs: 400,
+        silenceDurationInMs: 800,
         createResponse: true,
-        interruptResponse: true,
+        interruptResponse: false,
         autoTruncate: true,
       },
       inputAudioEchoCancellation: { type: "server_echo_cancellation" },
@@ -374,7 +390,7 @@ export class VoiceLiveSessionService {
     });
   }
 
-  private resolveSessionInstructions(): string {
+  private async resolveSessionInstructions(): Promise<string> {
     const baseInstructions =
       this.instructionMode === undefined
         ? this.config.VOICELIVE_INSTRUCTIONS
@@ -384,7 +400,7 @@ export class VoiceLiveSessionService {
       return baseInstructions;
     }
 
-    const interviewQuestionContext = buildInterviewQuestionContext(
+    const interviewQuestionContext = await buildInterviewContext(
       this.askedQuestionIds,
       this.askedQuestionsFromHistory,
     );
@@ -448,7 +464,9 @@ export class VoiceLiveSessionService {
     return lines.join("\n");
   }
 
-  private updateRoutingFromUserTranscript(transcript: string): boolean {
+  private async updateRoutingFromUserTranscript(
+    transcript: string,
+  ): Promise<boolean> {
     if (this.instructionMode !== "interview-prep") {
       return false;
     }
@@ -465,7 +483,7 @@ export class VoiceLiveSessionService {
       );
     const likelySelectionUtterance = hasControlVerb || words.length <= 3;
 
-    const selectedTopic = detectTechnicalTopicSelection(normalized);
+    const selectedTopic = await detectTopicSelection(normalized);
     if (selectedTopic && likelySelectionUtterance) {
       const modeChanged = this.trackMode !== "technical-topic";
       const topicChanged = this.lockedTopic !== selectedTopic;
@@ -519,10 +537,12 @@ export class VoiceLiveSessionService {
     return total;
   }
 
-  private trackAskedQuestionsFromTranscript(transcript: string): boolean {
+  private async trackAskedQuestionsFromTranscript(
+    transcript: string,
+  ): Promise<boolean> {
     let hasChanges = false;
 
-    const askedIds = extractAskedQuestionIdsFromTranscript(transcript);
+    const askedIds = await extractAskedQuestionIds(transcript);
     for (const id of askedIds) {
       if (!this.askedQuestionIds.has(id)) {
         this.askedQuestionIds.add(id);
@@ -565,7 +585,7 @@ export class VoiceLiveSessionService {
       return;
     }
 
-    const nextInstructions = this.resolveSessionInstructions();
+    const nextInstructions = await this.resolveSessionInstructions();
     if (this.lastAppliedInstructions === nextInstructions) {
       return;
     }
@@ -642,6 +662,13 @@ export class VoiceLiveSessionService {
     }
 
     this.handlers.onEvent({ type: "session.closed" });
+  }
+
+  private static readonly ECHO_GUARD_MS = 2000;
+
+  private isLikelyEcho(): boolean {
+    if (!this.responseActive || this.responseStartedAt === 0) return false;
+    return Date.now() - this.responseStartedAt < VoiceLiveSessionService.ECHO_GUARD_MS;
   }
 
   private async cancelResponseIfActive(): Promise<void> {
